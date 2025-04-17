@@ -17,3 +17,8 @@ def read_root():
 @app.get("/tarik")
 def read_root():
     return {"Hoi": "Tarik"}
+
+
+@app.get("/adnane")
+def read_root():
+    return {"Hoi": "adanane"}
