@@ -1,0 +1,1339 @@
+{
+	"verzoekXML": {
+		"stuurgegevens": {
+			"zender": {
+				"organisatie": {
+					"__prefix": "imam",
+					"__text": "DSO"
+				},
+				"applicatie": {
+					"__prefix": "imam",
+					"__text": "DSO-LV"
+				},
+				"__prefix": "imam"
+			},
+			"tijdstipBericht": {
+				"__prefix": "imam",
+				"__text": "2025-01-07T11:37:12.589876930"
+			},
+			"__prefix": "imam"
+		},
+		"verzoek": {
+			"akkoordverklaring": {
+				"__prefix": "vx",
+				"__text": "true"
+			},
+			"ambtshalve": {
+				"__prefix": "vx",
+				"__text": "false"
+			},
+			"doel": {
+				"__prefix": "vx",
+				"__text": "Initieren"
+			},
+			"indienDatum": {
+				"__prefix": "vx",
+				"__text": "2025-01-06T10:30:25.306595"
+			},
+			"naam": {
+				"_publiceerbaar": "true",
+				"__prefix": "vx",
+				"__text": "Verbouw Strandhotel Terschelling - sloopmelding"
+			},
+			"referentieAanvrager": {
+				"_publiceerbaar": "false",
+				"__prefix": "vx",
+				"__text": "24.445"
+			},
+			"toelichtingVerzoek": {
+				"_publiceerbaar": "false",
+				"__prefix": "vx",
+				"__text": "Deze sloopmelding heeft betrekking op de vergunningsaanvraag voor de verbouw van het hotel."
+			},
+			"type": {
+				"__prefix": "vx",
+				"__text": "Aanvraag vergunning"
+			},
+			"verzoeknummer": {
+				"__prefix": "vx",
+				"__text": "2025010600259"
+			},
+			"volgnummer": {
+				"__prefix": "vx",
+				"__text": "000"
+			},
+			"project": {
+				"naam": {
+					"_publiceerbaar": "true",
+					"__prefix": "vx",
+					"__text": "Verbouw Strandhotel Terschelling"
+				},
+				"omschrijving": {
+					"_publiceerbaar": "true",
+					"__prefix": "vx",
+					"__text": "De verbouw van Strandhotel Terschelling aan de Badweg Formerum 4 te Formerum."
+				},
+				"projectId": {
+					"__prefix": "vx",
+					"__text": "582a0649-3bd2-48c7-9f36-e0249ad2d487-0"
+				},
+				"__prefix": "vx"
+			},
+			"bevoegdGezag": {
+				"naam": {
+					"__prefix": "vx",
+					"__text": "Gemeente Harlingen"
+				},
+				"oin": {
+					"__prefix": "vx",
+					"__text": "00000001001608836000"
+				},
+				"tijdvakGeldigheid": {
+					"beginGeldigheid": {
+						"__prefix": "vx",
+						"__text": "2025-01-07T11:37:08.739513"
+					},
+					"__prefix": "vx"
+				},
+				"__prefix": "vx"
+			},
+			"bevoegdGezagHistorie": {
+				"bevoegdGezag": [
+					{
+						"naam": {
+							"__prefix": "vx",
+							"__text": "Gemeente Terschelling"
+						},
+						"oin": {
+							"__prefix": "vx",
+							"__text": "00000001001608861000"
+						},
+						"tijdvakGeldigheid": {
+							"beginGeldigheid": {
+								"__prefix": "vx",
+								"__text": "2025-01-06T10:30:09.449439"
+							},
+							"eindGeldigheid": {
+								"__prefix": "vx",
+								"__text": "2025-01-06T10:30:27.491139"
+							},
+							"__prefix": "vx"
+						},
+						"__prefix": "vx"
+					},
+					{
+						"naam": {
+							"__prefix": "vx",
+							"__text": "Gemeente Terschelling"
+						},
+						"oin": {
+							"__prefix": "vx",
+							"__text": "00000001001608861000"
+						},
+						"tijdvakGeldigheid": {
+							"beginGeldigheid": {
+								"__prefix": "vx",
+								"__text": "2025-01-06T10:30:27.491141"
+							},
+							"eindGeldigheid": {
+								"__prefix": "vx",
+								"__text": "2025-01-07T11:37:08.739507"
+							},
+							"__prefix": "vx"
+						},
+						"__prefix": "vx"
+					}
+				],
+				"__prefix": "vx"
+			},
+			"uitvoerendeInstantie": {
+				"naam": {
+					"__prefix": "vx",
+					"__text": "Fryske Utfieringstsjinst Miljeu en Omjouwing"
+				},
+				"oin": {
+					"__prefix": "vx",
+					"__text": "00000001852608263000"
+				},
+				"tijdvakGeldigheid": {
+					"beginGeldigheid": {
+						"__prefix": "vx",
+						"__text": "2025-01-07T11:37:08.739513"
+					},
+					"__prefix": "vx"
+				},
+				"__prefix": "vx"
+			},
+			"uitvoerendeInstantieHistorie": {
+				"uitvoerendeInstantie": {
+					"naam": {
+						"__prefix": "vx",
+						"__text": "Gemeente Harlingen"
+					},
+					"oin": {
+						"__prefix": "vx",
+						"__text": "00000001001608836000"
+					},
+					"tijdvakGeldigheid": {
+						"beginGeldigheid": {
+							"__prefix": "vx",
+							"__text": "2025-01-06T10:30:27.491141"
+						},
+						"eindGeldigheid": {
+							"__prefix": "vx",
+							"__text": "2025-01-07T11:37:08.739507"
+						},
+						"__prefix": "vx"
+					},
+					"__prefix": "vx"
+				},
+				"__prefix": "vx"
+			},
+			"gemachtigde": {
+				"emailadres": {
+					"_bron": "gebruiker",
+					"_publiceerbaar": "false",
+					"__prefix": "vx",
+					"__text": "info@markdewitte.nl"
+				},
+				"telefoonnummer": {
+					"_bron": "gebruiker",
+					"_publiceerbaar": "false",
+					"__prefix": "vx",
+					"__text": "0515233406"
+				},
+				"nietNatuurlijkPersoon": {
+					"kvkNummer": {
+						"_bron": "DSO-LV",
+						"_publiceerbaar": "true",
+						"__prefix": "vx",
+						"__text": "01084525"
+					},
+					"handelsnaam": {
+						"_bron": "DSO-LV",
+						"_publiceerbaar": "true",
+						"__prefix": "vx",
+						"__text": "Bouwadviesburo Mark de Witte"
+					},
+					"bezoekAdres": {
+						"huisnummer": {
+							"_bron": "DSO-LV",
+							"_publiceerbaar": "true",
+							"__prefix": "ic",
+							"__text": "5"
+						},
+						"postcode": {
+							"_bron": "DSO-LV",
+							"_publiceerbaar": "true",
+							"__prefix": "ic",
+							"__text": "8754CK"
+						},
+						"straatnaam": {
+							"_bron": "DSO-LV",
+							"_publiceerbaar": "true",
+							"__prefix": "ic",
+							"__text": "Bleekstraat"
+						},
+						"woonplaatsnaam": {
+							"_bron": "DSO-LV",
+							"_publiceerbaar": "true",
+							"__prefix": "ic",
+							"__text": "Makkum"
+						},
+						"__prefix": "vx"
+					},
+					"__prefix": "vx"
+				},
+				"__prefix": "vx"
+			},
+			"initiatiefnemer": {
+				"nietNatuurlijkPersoon": {
+					"rsin": {
+						"_bron": "DSO-LV",
+						"_publiceerbaar": "true",
+						"__prefix": "vx",
+						"__text": "852253643"
+					},
+					"kvkNummer": {
+						"_bron": "DSO-LV",
+						"_publiceerbaar": "true",
+						"__prefix": "vx",
+						"__text": "56675933"
+					},
+					"handelsnaam": {
+						"_bron": "DSO-LV",
+						"_publiceerbaar": "true",
+						"__prefix": "vx",
+						"__text": "Doeksen Onroerend Goed B.V."
+					},
+					"postadres": {
+						"afwijkendAdres": {
+							"adrestype": {
+								"_publiceerbaar": "true",
+								"__prefix": "ic",
+								"__text": "postbusnummer"
+							},
+							"nummer": {
+								"_bron": "DSO-LV",
+								"_publiceerbaar": "true",
+								"__prefix": "ic",
+								"__text": "277"
+							},
+							"postcode": {
+								"_bron": "DSO-LV",
+								"_publiceerbaar": "true",
+								"__prefix": "ic",
+								"__text": "3000AG"
+							},
+							"woonplaatsnaam": {
+								"_bron": "DSO-LV",
+								"_publiceerbaar": "true",
+								"__prefix": "ic",
+								"__text": "Rotterdam"
+							},
+							"__prefix": "ic"
+						},
+						"__prefix": "vx"
+					},
+					"bezoekAdres": {
+						"huisletter": {
+							"_bron": "DSO-LV",
+							"_publiceerbaar": "true",
+							"__prefix": "ic",
+							"__text": "A"
+						},
+						"huisnummer": {
+							"_bron": "DSO-LV",
+							"_publiceerbaar": "true",
+							"__prefix": "ic",
+							"__text": "4"
+						},
+						"postcode": {
+							"_bron": "DSO-LV",
+							"_publiceerbaar": "true",
+							"__prefix": "ic",
+							"__text": "3016CL"
+						},
+						"straatnaam": {
+							"_bron": "DSO-LV",
+							"_publiceerbaar": "true",
+							"__prefix": "ic",
+							"__text": "Westerkade"
+						},
+						"woonplaatsnaam": {
+							"_bron": "DSO-LV",
+							"_publiceerbaar": "true",
+							"__prefix": "ic",
+							"__text": "Rotterdam"
+						},
+						"__prefix": "vx"
+					},
+					"__prefix": "vx"
+				},
+				"__prefix": "vx"
+			},
+			"projectlocaties": {
+				"projectlocatie": {
+					"coordinatenEtrs": {
+						"referentiestelsel": {
+							"__prefix": "ic",
+							"__text": "ETRS89"
+						},
+						"vlaklocatie": {
+							"surfaceMember": {
+								"Polygon": {
+									"exterior": {
+										"LinearRing": {
+											"posList": {
+												"__prefix": "gml",
+												"__text": "53.407466063 5.2973273 53.407321261 5.297398512 53.407024742 5.297547852 53.40664042 5.297742088 53.406621873 5.297751374 53.406327662 5.297898628 53.406318339 5.297903324 53.406348176 5.298071154 53.406398096 5.298350014 53.406464739 5.298707299 53.406502072 5.298917051 53.40662468 5.298854611 53.406893184 5.298716211 53.407196728 5.298564821 53.407506205 5.298404034 53.407782642 5.298265642 53.407676658 5.297661875 53.407605575 5.297258684 53.407466063 5.2973273"
+											},
+											"_srsName": "urn:ogc:def:crs:EPSG::4258",
+											"__prefix": "gml"
+										},
+										"__prefix": "gml"
+									},
+									"__prefix": "gml"
+								},
+								"__prefix": "gml"
+							},
+							"_srsName": "urn:ogc:def:crs:EPSG::4258",
+							"__prefix": "ic"
+						},
+						"__prefix": "vx"
+					},
+					"adresaanduiding": {
+						"identificatiecodeNummeraanduiding": {
+							"__prefix": "vx",
+							"__text": "0093200000218266"
+						},
+						"opgegevenAdresHuisnummer": {
+							"__prefix": "vx",
+							"__text": "4"
+						},
+						"opgegevenAdresPostcode": {
+							"__prefix": "vx",
+							"__text": "8894KW"
+						},
+						"opgegevenAdresStraatnaam": {
+							"__prefix": "vx",
+							"__text": "Badweg Formerum"
+						},
+						"opgegevenAdresWoonplaatsNaam": {
+							"__prefix": "vx",
+							"__text": "Formerum"
+						},
+						"__prefix": "vx"
+					},
+					"__prefix": "vx"
+				},
+				"__prefix": "vx"
+			},
+			"projectactiviteiten": {
+				"projectactiviteit": {
+					"activiteitId": {
+						"__prefix": "vx",
+						"__text": "http://toepasbare-regels.omgevingswet.overheid.nl/00000001003214345000/id/concept/IndieningsvereistenMeldingnl.imow-mnre1034.activiteit.SlopenBouwwerk"
+					},
+					"imowId": {
+						"__prefix": "vx",
+						"__text": "nl.imow-mnre1034.activiteit.SlopenBouwwerk"
+					},
+					"activiteitnaam": {
+						"__prefix": "vx",
+						"__text": "Aanvraag vergunning voor slopen"
+					},
+					"volgnummer": {
+						"__prefix": "vx",
+						"__text": "1"
+					},
+					"specificaties": {
+						"specificatie": [
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213491"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Slopen of asbest verwijderen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Gaat u asbest verwijderen?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213492"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Slopen of asbest verwijderen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Ontstaat er in totaal meer dan 10 kubieke meter sloopafval?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "Bedrijf"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213500"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Particulier of bedrijf"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Asbest verwijderen: worden de werkzaamheden uitgevoerd door een particulier of bedrijf?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "false"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213494"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "LAVS"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Wilt u verwijzen naar projectgegevens in LAVS?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "Hotel"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213511"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Algemene vragen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Wat is de functie van het (onderdeel van het) bouwwerk?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213493"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Algemene vragen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Is een asbestinventarisatierapport vereist? Kunt u deze vraag niet beantwoorden? Lees dan de toelichting hier onder."
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "Badweg Formerum 4\n8894 KW Formerum"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213510"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Algemene vragen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Geef het adres van het (onderdeel van het) bouwwerk."
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213496"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Algemene vragen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Bent u de eigenaar van het (betreffende deel van het) bouwwerk?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "Terschelling"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213515"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Algemene vragen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Wat is de kadastrale gemeente van de locatie van de werkzaamheden aan het (onderdeel van het) bouwwerk?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "E"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213516"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Algemene vragen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Wat is de kadastrale sectie van de locatie van de werkzaamheden aan het (onderdeel van het) bouwwerk?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "926"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213517"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Algemene vragen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Wat is het kadastrale perceelnummer van de locatie van de werkzaamheden aan het (onderdeel van het) bouwwerk?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "Het hoofdgebouw"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213512"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Sloopwerkzaamheden"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Wat gaat u geheel of gedeeltelijk slopen?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "100"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213518"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Sloopwerkzaamheden"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Hoeveel kubieke meters sloopafval wordt verwijderd?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "false"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213495"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Sloopwerkzaamheden"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Gaat u de sloopwerkzaamheden zelf uitvoeren?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "n.t.b."
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213529"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Sloopwerkzaamheden"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Geef de naam van de uitvoerder van de sloopwerkzaamheden."
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "false"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "nog niet bekend"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213528"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Sloopwerkzaamheden"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Geef het adres van de uitvoerder van de sloopwerkzaamheden."
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "false"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "Handmatig met elektrische apparaten (bijvoorbeeld met een pneumatische voorhamer)"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213501"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Sloopwerkzaamheden"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Hoe gaat u de sloopwerkzaamheden uitvoeren?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "Afvalverwerker"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213519"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Sloopwerkzaamheden"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Wat is de voorgenomen afvoerbestemming van het verwijderde sloopafval?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "n.t.b."
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213509"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Sloopwerkzaamheden"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Op welke data en tijdstippen gaat u de sloopwerkzaamheden uitvoeren?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "false"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213499"
+								},
+								"vraagreferentie": {
+									"__prefix": "vx",
+									"__text": "Sloopmelding.asbest.werkzaamheden.meerlocaties"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Asbest verwijderen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Heeft deze melding betrekking op het verwijderen van asbest op meerdere locaties?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "n.t.b."
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213522"
+								},
+								"vraagreferentie": {
+									"__prefix": "vx",
+									"__text": "Sloopmelding.asbest.werkzaamheden.begineneind.datumtijd"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Asbest verwijderen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Op welke data en tijdstippen worden de asbestverwijderingswerkzaamheden uitgevoerd?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "Zie asbestinventarisatierapport."
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213525"
+								},
+								"vraagreferentie": {
+									"__prefix": "vx",
+									"__text": "Sloopmelding.asbest.type.inventarisatierapport.vereist"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Asbest verwijderen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Geef een exacte beschrijving van de plaatsen waar asbest zit."
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "Zie asbestinventarisatierapport."
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213526"
+								},
+								"vraagreferentie": {
+									"__prefix": "vx",
+									"__text": "Sloopmelding.asbest.project_locatie.locatie.asbest_object.hoeveelheid"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Asbest verwijderen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Hoeveel asbest zal worden verwijderd?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "Te bepalen door sloopbedrijf."
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213527"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Asbest verwijderen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Wat is de wijze waarop u de asbest gaat verwijderen?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "Afvalverwerkingsbedrijf."
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213523"
+								},
+								"vraagreferentie": {
+									"__prefix": "vx",
+									"__text": "Sloopmelding.asbest.project_locatie.locatie.asbest_object.afvoerbestemming"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Asbest verwijderen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Wat is de voorgenomen afvoerbestemming van het verwijderde asbest?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "Geklemde vloerplaten onder verwarmingstoestellen, Ander asbesthoudend materiaal"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213502"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Asbest verwijderen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Gaat het om het geheel of gedeeltelijk verwijderen van 1 of meer van onderstaande materialen of gaat het om ander asbesthoudend materiaal?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "false"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213498"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Asbest verwijderen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Wordt de asbestverwijdering in het kader van reparatiewerkzaamheden of mutatieonderhoudswerkzaamheden verricht?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213505"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Informatie over stikstof en veiligheid bij uitvoering van sloopwerkzaamheden"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Levert u ook de gegevens aan over de stikstofemissies en de veiligheid bij het uitvoeren van de sloopwerkzaamheden?"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213508"
+								},
+								"vraagreferentie": {
+									"__prefix": "vx",
+									"__text": "Sloopmelding.asbest.type.inventarisatierapport.vereist.bestandsnaam"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Bijlagen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Asbestinventarisatierapport"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"gevraagdeBijlage": {
+									"documentsoortDSO": {
+										"__prefix": "vx",
+										"__text": "Asbestinventarisatierapport"
+									},
+									"documenttypeGeneriek": {
+										"__prefix": "vx",
+										"__text": "Overig"
+									},
+									"potentieelVertrouwelijk": {
+										"__prefix": "vx",
+										"__text": "true"
+									},
+									"verplicht": {
+										"__prefix": "vx",
+										"__text": "false"
+									},
+									"documenten": {
+										"document": {
+											"bestandsnaam": {
+												"__prefix": "vx",
+												"__text": "Asbestinventarisatierapport 24B575 Badweg 4 Formerum te Formerum.pdf"
+											},
+											"documentId": {
+												"__prefix": "vx",
+												"__text": "eb15d4a7b14bcc2c2ad16811d56117a64a70cf7125ecda7f77ce5a52984cbdab"
+											},
+											"vertrouwelijk": {
+												"__prefix": "vx",
+												"__text": "false"
+											},
+											"__prefix": "vx"
+										},
+										"__prefix": "vx"
+									},
+									"__prefix": "vx"
+								},
+								"__prefix": "vx"
+							},
+							{
+								"antwoord": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"vraagclassificatie": {
+									"__prefix": "vx",
+									"__text": "activiteit"
+								},
+								"vraagId": {
+									"__prefix": "vx",
+									"__text": "1213513"
+								},
+								"groepering": {
+									"__prefix": "vx",
+									"__text": "Bijlagen"
+								},
+								"vraagtekst": {
+									"__prefix": "vx",
+									"__text": "Tekening slopen"
+								},
+								"publiceerbaar": {
+									"__prefix": "vx",
+									"__text": "true"
+								},
+								"gevraagdeBijlage": {
+									"documentsoortDSO": {
+										"__prefix": "vx",
+										"__text": "Tekening slopen"
+									},
+									"documenttypeGeneriek": {
+										"__prefix": "vx",
+										"__text": "Overig"
+									},
+									"potentieelVertrouwelijk": {
+										"__prefix": "vx",
+										"__text": "true"
+									},
+									"verplicht": {
+										"__prefix": "vx",
+										"__text": "false"
+									},
+									"documenten": {
+										"document": {
+											"bestandsnaam": {
+												"__prefix": "vx",
+												"__text": "241219_24445_D0001_BESTAAND.pdf"
+											},
+											"documentId": {
+												"__prefix": "vx",
+												"__text": "6be2dd89d4917fbfb57f2d76a99bbe4401751ea990cb2dee7e9ba1128627aaa3"
+											},
+											"vertrouwelijk": {
+												"__prefix": "vx",
+												"__text": "false"
+											},
+											"__prefix": "vx"
+										},
+										"__prefix": "vx"
+									},
+									"__prefix": "vx"
+								},
+								"__prefix": "vx"
+							}
+						],
+						"__prefix": "vx"
+					},
+					"__prefix": "vx"
+				},
+				"__prefix": "vx"
+			},
+			"__prefix": "imam"
+		},
+		"_xmlns:imam": "http://www.omgevingswet.nl/koppelvlak/stam-v4/IMAM",
+		"_xmlns:vx": "http://www.omgevingswet.nl/koppelvlak/stam-v4/verzoek",
+		"_xmlns:sml": "http://www.w3.org/2001/SMIL20/",
+		"_xmlns:lng": "http://www.w3.org/2001/SMIL20/Language",
+		"_xmlns:xlk": "http://www.w3.org/1999/xlink",
+		"_xmlns:gml": "http://www.opengis.net/gml",
+		"_xmlns:ic": "http://www.omgevingswet.nl/koppelvlak/stam-v4/common",
+		"_version": "4.0.0",
+		"__prefix": "imam"
+	}
+}
