@@ -1,12 +1,14 @@
 from typing import Union
-
-from fastapi import FastAPI
 from fastapi import FastAPI, Depends
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
+import os
 
+# Load environment variables from .env file
+load_dotenv()
 
-DATABASE_URL = "postgresql://postgres:1&5819tGw/8^@db.yqlpqgsoynbtvhwprjyt.supabase.co:5432/postgres"  # Replace with your Supabase details
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -20,19 +22,16 @@ def get_db():
     finally:
         db.close()
 
-
 @app.get("/omar")
-def read_root():
+def read_omar():
     return {"Hoi": "Omar"}
 
-
 @app.get("/tarik")
-def read_root():
+def read_tarik():
     return {"Hoi": "Tarik"}
 
-
 @app.get("/adnane")
-def read_root():
+def read_adnane():
     return {"Hoi": "adanane"}
 
 @app.get("/")
