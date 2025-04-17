@@ -22,18 +22,6 @@ def get_db():
     finally:
         db.close()
 
-@app.get("/omar")
-def read_omar():
-    return {"Hoi": "Omar"}
-
-@app.get("/tarik")
-def read_tarik():
-    return {"Hoi": "Tarik"}
-
-@app.get("/adnane")
-def read_adnane():
-    return {"Hoi": "adanane"}
-
 @app.get("/")
 def read_root(db=Depends(get_db)):
     return {"message": "Connected to Supabase DB!"}
