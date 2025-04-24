@@ -1,3 +1,4 @@
+from http.client import HTTPException
 from typing import Union
 from fastapi import FastAPI, Depends
 from sqlalchemy import create_engine
@@ -52,3 +53,14 @@ supabase = create_client(url, key)
 def get_meldingen():
     response = supabase.table("Messages").select("*").execute()
     return response.data
+
+
+@app.get("/meldingen/{melding_id}")
+def get_melding_by_id(melding_id: int):
+    response = supabase.table("Messages").select("*").eq("id", melding_id).execute()
+    
+    if response.data and len(response.data) > 0:
+        return response.data[0]
+    else:
+        # Return 404 if not found
+        raise HTTPException(status_code=404, detail="Melding not found")

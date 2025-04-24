@@ -45,7 +45,7 @@ def save_to_supabase(request_type, subtype):
 
 # Main function to process meldingen
 def main():
-    file_path = r"C:\Users\kenki\williamprojectplan\stadsbeheerbackend\meldingen.json"
+    file_path = r"C:\Users\kenki\williamprojectplan\stadsbeheerbackend\Aanvraag.json"
     print(f"Loading JSON file from: {file_path}")
     data = load_json(file_path)
     
