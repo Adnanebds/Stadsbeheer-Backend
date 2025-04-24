@@ -1,3 +1,4 @@
+from enum import Enum
 import json
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -37,15 +38,20 @@ def categorize_activity(activity_name):
     }
     return categories.get(activity_name, "Onbekende categorie")
 
+class Status(Enum):
+    Pending = "Pending"
+    Accepted = "Accepted"
+    Rejected = "Rejected"
+
 # Save to Supabase
 def save_to_supabase(request_type, subtype):
-    data = {"type": request_type, "subtype": subtype}
+    data = {"type": request_type, "subtype": subtype, "status": Status.Pending.value}
     response = supabase.table("Messages").insert(data).execute()
     print("Saved to Supabase:", response)
 
 # Main function to process meldingen
 def main():
-    file_path = r"C:\Users\kenki\williamprojectplan\stadsbeheerbackend\Aanvraag.json"
+    file_path = r"C:\Users\kenki\williamprojectplan\stadsbeheerbackend\meldingen.json"
     print(f"Loading JSON file from: {file_path}")
     data = load_json(file_path)
     
