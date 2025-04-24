@@ -7,11 +7,9 @@ import os
 # Load environment variables from .env file
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
 # Initialize Supabase
-url = "https://yqlpqgsoynbtvhwprjyt.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxbHBxZ3NveW5idHZod3Byanl0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDg5MzUzNiwiZXhwIjoyMDYwNDY5NTM2fQ.fknznZ4sWszgZCUj_RgTenxw6r9u1NZqm_lvvmXll8A"
+url = os.getenv("SUPABASE_URL")
+key = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
 
 # Function to load the JSON file
