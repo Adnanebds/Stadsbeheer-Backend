@@ -25,3 +25,30 @@ def get_db():
 @app.get("/")
 def read_root(db=Depends(get_db)):
     return {"message": "Connected to Supabase DB!"}
+
+
+
+from fastapi import FastAPI
+from supabase import create_client
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# Allow frontend access (CORS)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or replace with your frontend domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+url = os.getenv("SUPABASE_URL")
+key = os.getenv("SUPABASE_KEY")
+# Supabase credentials
+supabase = create_client(url, key)
+
+@app.get("/meldingen")
+def get_meldingen():
+    response = supabase.table("Messages").select("*").execute()
+    return response.data
