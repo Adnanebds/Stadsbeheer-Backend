@@ -1,54 +1,55 @@
-# Local/RunPod Implementation with Gemma 2-2b for Response Generation
-
-# Step 1: Import libraries with correct packages
+# Complete Backend API with CORS for Frontend Integration
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 import os
+import tempfile
+import json
+import traceback
+from werkzeug.utils import secure_filename
 import re
 import xml.etree.ElementTree as ET
-import argparse
 from langchain_community.document_loaders import TextLoader, PyPDFLoader, UnstructuredFileLoader, Docx2txtLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import login
-import json
 
-# Step 2: Setup command line arguments or file paths
-def setup_file_paths():
-    """
-    Setup file paths - either from command line arguments or hardcoded paths
-    """
-    parser = argparse.ArgumentParser(description='Validate XML messages against business rules')
-    parser.add_argument('--rules', type=str, help='Path to business rules document file')
-    parser.add_argument('--xml', type=str, help='Path to XML message file')
-    parser.add_argument('--hf_token', type=str, help='Hugging Face token (optional)')
-    
-    args = parser.parse_args()
-    
-    # If no arguments provided, use hardcoded paths or prompt for input
-    if not args.rules:
-        print("No rules file specified. Please provide the path to your business rules document:")
-        rules_path = input("Business rules file path: ").strip().strip('"').strip("'")
-    else:
-        rules_path = args.rules
-    
-    if not args.xml:
-        print("No XML file specified. Please provide the path to your XML message file:")
-        xml_path = input("XML message file path: ").strip().strip('"').strip("'")
-    else:
-        xml_path = args.xml
-    
-    return rules_path, xml_path, args.hf_token
+# Initialize Flask app
+app = Flask(__name__)
 
-# Step 3: Set up Hugging Face (if you have a token)
-def setup_huggingface(token=None):
-    if token:
-        login(token)
-        print("Logged in to Hugging Face")
-    else:
-        print("No Hugging Face token provided - using public models only")
+# Enable CORS for localhost:3000 (React development server)
+CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"])
 
-# Step 4: Set up Gemma 2-2b model for response generation
+# Global variable to store the AI model (loaded once)
+generation_pipeline = None
+
+# Allowed file extensions
+ALLOWED_EXTENSIONS = {
+    'rules': {'pdf', 'docx', 'doc', 'txt'},
+    'xml': {'xml'}
+}
+
+def allowed_file(filename, file_type):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS[file_type]
+
+def get_file_extension(filename):
+    """Get file extension for temporary file creation"""
+    if not filename:
+        return '.tmp'
+    return '.' + filename.rsplit('.', 1)[1].lower() if '.' in filename else '.tmp'
+
+# Initialize AI model
+def init_model():
+    """Initialize the AI model once when the app starts"""
+    global generation_pipeline
+    if generation_pipeline is None:
+        print("🤖 Initializing AI model...")
+        generation_pipeline = setup_gemma_model()
+        print("✅ AI model ready!")
+    return generation_pipeline
+
 def setup_gemma_model():
     print("Setting up Gemma 2-2b model for response generation...")
     try:
@@ -93,7 +94,6 @@ def setup_gemma_model():
             print(f"❌ Fallback model also failed: {fallback_error}")
             return None
 
-# Improved file loader that handles different file types and encodings
 def load_business_rules(file_path):
     print(f"Loading business rules from: {file_path}")
     
@@ -185,7 +185,6 @@ def load_business_rules(file_path):
             print(f"Alternative loading also failed: {inner_e}")
             raise
 
-# Fixed XML file reading function that handles different encodings
 def read_xml_file(file_path):
     print(f"Reading XML file: {file_path}")
     
@@ -213,7 +212,6 @@ def read_xml_file(file_path):
     except Exception as e:
         raise RuntimeError(f"Could not read XML file: {e}")
 
-# Improved XML parser that detects message type
 def parse_xml_message(xml_content):
     try:
         # Parse XML
@@ -271,7 +269,6 @@ def parse_xml_message(xml_content):
         print(f"❌ Error parsing XML: {e}")
         return None
 
-# Improved business rule retrieval that considers message type
 def retrieve_business_rules(vectordb, activity_name, message_type):
     # Create more specific queries
     queries = [
@@ -301,7 +298,6 @@ def retrieve_business_rules(vectordb, activity_name, message_type):
     
     return rule_texts
 
-# More sophisticated rule extraction
 def extract_requirements(rule_texts, message_type):
     requirements = {
         'required_fields': [],
@@ -359,7 +355,6 @@ def extract_requirements(rule_texts, message_type):
     
     return requirements
 
-# Enhanced validation function that handles coordinates as boundary info
 def validate_message(message_data, requirements):
     print("\n⚖️ Validating message against requirements:")
     
@@ -415,7 +410,6 @@ def validate_message(message_data, requirements):
         'missing_attachments': missing_attachments
     }
 
-# Generate explanation using Gemma 2-2b
 def generate_explanation(generation_pipeline, validation_result, message_data):
     if generation_pipeline is None:
         # Fallback explanation if model is not available
@@ -433,50 +427,37 @@ def generate_explanation(generation_pipeline, validation_result, message_data):
     message_type = message_data.get('message_type', 'Unknown type')
     
     if validation_result['is_valid']:
-        prompt = f"""Generate a clear, concise explanation for why a message was accepted.
-
-Activity: {activity}
-Message Type: {message_type}
-
-The message contains all required fields and attachments according to the business rules.
-
-Response:"""
+        prompt = f"Message for {activity} ({message_type}) was accepted. All required information is present."
     else:
         missing_fields = ", ".join(validation_result['missing_fields']) if validation_result['missing_fields'] else "None"
         missing_attachments = ", ".join(validation_result['missing_attachments']) if validation_result['missing_attachments'] else "None"
         
-        prompt = f"""Generate a clear, concise explanation for why a message was rejected.
-
-Activity: {activity}
-Message Type: {message_type}
-Missing Fields: {missing_fields}
-Missing Attachments: {missing_attachments}
-
-The message does not meet all requirements according to the business rules. Explain what needs to be added.
-
-Response:"""
+        prompt = f"Message for {activity} ({message_type}) was rejected. Missing fields: {missing_fields}. Missing attachments: {missing_attachments}. Please provide the missing information."
     
-    # Generate response using Gemma 2-2b
+    # Generate response using the available model
     try:
         print("🤖 Generating AI explanation...")
-        result = generation_pipeline(prompt, max_new_tokens=150, do_sample=True, temperature=0.1)[0]['generated_text']
+        result = generation_pipeline(prompt, max_new_tokens=100, temperature=0.3, pad_token_id=generation_pipeline.tokenizer.eos_token_id)
         
         # Extract just the generated response part
-        if 'Response:' in result:
-            explanation = result.split('Response:')[-1].strip()
+        generated_text = result[0]['generated_text']
+        if len(generated_text) > len(prompt):
+            explanation = generated_text[len(prompt):].strip()
         else:
-            explanation = result[len(prompt):].strip()
+            explanation = generated_text.strip()
         
-        return explanation
+        # Clean up repetitive text
+        if explanation.count(explanation.split('.')[0]) > 2:
+            # If the first sentence repeats too much, use fallback
+            raise Exception("Repetitive output detected")
+            
+        return explanation if explanation else prompt
+        
     except Exception as e:
         print(f"❌ Error generating explanation: {e}")
-        # Fallback to simple explanation
-        if validation_result['is_valid']:
-            return "The message meets all requirements according to the business rules."
-        else:
-            return f"The message is missing required information: {missing_fields}"
+        # Use the prompt as fallback explanation
+        return prompt
 
-# Main validation function with Gemma explanation
 def validate_xml_against_rules(xml_content, vectordb, generation_pipeline):
     print("\n" + "="*60)
     print("🚀 STARTING VALIDATION PROCESS")
@@ -486,7 +467,7 @@ def validate_xml_against_rules(xml_content, vectordb, generation_pipeline):
     print("\n📄 Step 1: Parsing XML message")
     message_data = parse_xml_message(xml_content)
     if not message_data:
-        return {"decision": "REJECTED", "explanation": "Failed to parse XML"}
+        return {"decision": "REJECTED", "technical_reasons": "Failed to parse XML", "explanation": "Failed to parse XML"}
     
     print(f"\n📊 Parsed message data:")
     print(f"  Activity: {message_data['activity_name']}")
@@ -543,67 +524,239 @@ def validate_xml_against_rules(xml_content, vectordb, generation_pipeline):
     
     return result
 
-# Save results to JSON file
-def save_results(result, output_file="validation_result.json"):
-    try:
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(result, f, indent=2, ensure_ascii=False)
-        print(f"💾 Results saved to: {output_file}")
-        return True
-    except Exception as e:
-        print(f"❌ Error saving results: {e}")
-        return False
+# API Routes
 
-# Main execution function
-def main():
-    print("🔍 XML Message Validation System")
-    print("="*50)
-    
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'model_loaded': generation_pipeline is not None,
+        'message': 'XML Validation API is running'
+    })
+
+@app.route('/validate', methods=['POST'])
+def validate_message_endpoint():
+    """
+    Validate XML message against business rules
+    Expects multipart/form-data with 'rules_file' and 'xml_file'
+    """
     try:
-        # Step 1: Setup file paths
-        rules_path, xml_path, hf_token = setup_file_paths()
+        # Check if files are present
+        if 'rules_file' not in request.files or 'xml_file' not in request.files:
+            return jsonify({
+                'success': False,
+                'error': 'Both rules_file and xml_file are required',
+                'decision': 'ERROR',
+                'technical_reasons': 'Missing files',
+                'explanation': 'Please upload both business rules and XML message files'
+            }), 400
         
-        # Step 2: Setup Hugging Face
-        setup_huggingface(hf_token)
+        rules_file = request.files['rules_file']
+        xml_file = request.files['xml_file']
         
-        # Step 3: Setup language model
-        generation_pipeline = setup_gemma_model()
+        # Check if files have valid names
+        if rules_file.filename == '' or xml_file.filename == '':
+            return jsonify({
+                'success': False,
+                'error': 'Files must have valid names',
+                'decision': 'ERROR',
+                'technical_reasons': 'Empty filenames',
+                'explanation': 'Please upload files with valid names'
+            }), 400
         
-        # Step 4: Load business rules
-        print(f"\n📚 Loading business rules...")
-        rules_vectordb = load_business_rules(rules_path)
+        # Check file extensions
+        if not allowed_file(rules_file.filename, 'rules'):
+            return jsonify({
+                'success': False,
+                'error': f'Invalid rules file type. Allowed: {", ".join(ALLOWED_EXTENSIONS["rules"])}',
+                'decision': 'ERROR',
+                'technical_reasons': 'Invalid file type',
+                'explanation': 'Business rules file must be PDF, DOCX, DOC, or TXT'
+            }), 400
         
-        # Step 5: Read XML message
-        print(f"\n📄 Reading XML message...")
-        xml_content = read_xml_file(xml_path)
+        if not allowed_file(xml_file.filename, 'xml'):
+            return jsonify({
+                'success': False,
+                'error': 'XML file must have .xml extension',
+                'decision': 'ERROR',
+                'technical_reasons': 'Invalid file type',
+                'explanation': 'Message file must be XML format'
+            }), 400
         
-        # Step 6: Validate message
-        print(f"\n🚀 Starting validation process...")
-        result = validate_xml_against_rules(xml_content, rules_vectordb, generation_pipeline)
+        # Initialize model if not already done
+        global generation_pipeline
+        if generation_pipeline is None:
+            init_model()
         
-        # Step 7: Display and save results
-        print(f"\n📊 FINAL VALIDATION RESULT:")
-        print(f"{'='*50}")
+        # Save uploaded files temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=get_file_extension(rules_file.filename)) as tmp_rules:
+            rules_file.save(tmp_rules.name)
+            rules_path = tmp_rules.name
         
-        # Color-coded output
-        if result['decision'] == 'ACCEPTED':
-            print(f"✅ Decision: {result['decision']}")
-        else:
-            print(f"❌ Decision: {result['decision']}")
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.xml', mode='w+b') as tmp_xml:
+            xml_file.save(tmp_xml.name)
+            xml_path = tmp_xml.name
+        
+        try:
+            # Load business rules
+            print(f"📚 Loading business rules from: {rules_file.filename}")
+            rules_vectordb = load_business_rules(rules_path)
             
-        print(f"🔧 Technical Reasons: {result['technical_reasons']}")
-        print(f"🤖 AI Explanation: {result['explanation']}")
-        print(f"{'='*50}")
+            # Read XML content
+            print(f"📄 Reading XML file: {xml_file.filename}")
+            xml_content = read_xml_file(xml_path)
+            
+            # Validate
+            print(f"⚖️ Starting validation...")
+            result = validate_xml_against_rules(xml_content, rules_vectordb, generation_pipeline)
+            
+            # Add success flag and file info
+            result['success'] = True
+            result['files_processed'] = {
+                'rules_file': rules_file.filename,
+                'xml_file': xml_file.filename
+            }
+            
+            print(f"✅ Validation complete: {result['decision']}")
+            return jsonify(result), 200
+            
+        finally:
+            # Clean up temporary files
+            try:
+                os.unlink(rules_path)
+                os.unlink(xml_path)
+            except Exception as cleanup_error:
+                print(f"Warning: Could not clean up temp files: {cleanup_error}")
+                
+    except Exception as e:
+        print(f"❌ Validation error: {str(e)}")
+        print(f"❌ Full traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'decision': 'ERROR', 
+            'technical_reasons': f'System error: {str(e)}',
+            'explanation': 'An error occurred during validation. Please check your files and try again.'
+        }), 500
+
+@app.route('/upload', methods=['POST'])
+def upload_files():
+    """
+    Alternative upload endpoint that just processes and returns file info
+    Can be used for file validation before sending to /validate
+    """
+    try:
+        uploaded_files = {}
         
-        # Save results
-        save_results(result)
+        # Process rules file if present
+        if 'rules_file' in request.files:
+            rules_file = request.files['rules_file']
+            if rules_file.filename != '':
+                if allowed_file(rules_file.filename, 'rules'):
+                    uploaded_files['rules_file'] = {
+                        'filename': secure_filename(rules_file.filename),
+                        'size': len(rules_file.read()),
+                        'type': rules_file.content_type,
+                        'valid': True
+                    }
+                    rules_file.seek(0)  # Reset file pointer
+                else:
+                    uploaded_files['rules_file'] = {
+                        'filename': rules_file.filename,
+                        'valid': False,
+                        'error': f'Invalid file type. Allowed: {", ".join(ALLOWED_EXTENSIONS["rules"])}'
+                    }
         
-        return result
+        # Process XML file if present
+        if 'xml_file' in request.files:
+            xml_file = request.files['xml_file']
+            if xml_file.filename != '':
+                if allowed_file(xml_file.filename, 'xml'):
+                    uploaded_files['xml_file'] = {
+                        'filename': secure_filename(xml_file.filename),
+                        'size': len(xml_file.read()),
+                        'type': xml_file.content_type,
+                        'valid': True
+                    }
+                    xml_file.seek(0)  # Reset file pointer
+                else:
+                    uploaded_files['xml_file'] = {
+                        'filename': xml_file.filename,
+                        'valid': False,
+                        'error': 'File must have .xml extension'
+                    }
+        
+        return jsonify({
+            'success': True,
+            'message': 'Files processed successfully',
+            'files': uploaded_files
+        }), 200
         
     except Exception as e:
-        print(f"❌ Fatal error: {e}")
-        return None
+        print(f"❌ Upload error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Upload failed: {str(e)}'
+        }), 500
 
-# Entry point
-if __name__ == "__main__":
-    main()
+@app.route('/status', methods=['GET'])
+def get_status():
+    """Get current system status"""
+    return jsonify({
+        'api_version': '1.0',
+        'status': 'running',
+        'model_status': {
+            'loaded': generation_pipeline is not None,
+            'model_name': 'google/gemma-2-2b-it' if generation_pipeline else 'Not loaded'
+        },
+        'supported_files': {
+            'business_rules': list(ALLOWED_EXTENSIONS['rules']),
+            'xml_messages': list(ALLOWED_EXTENSIONS['xml'])
+        }
+    })
+
+# Error handlers
+@app.errorhandler(404)
+def not_found_error(error):
+    return jsonify({
+        'success': False,
+        'error': 'Endpoint not found',
+        'available_endpoints': ['/health', '/validate', '/upload', '/status']
+    }), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({
+        'success': False,
+        'error': 'Internal server error',
+        'message': 'Something went wrong on the server'
+    }), 500
+
+@app.errorhandler(413)
+def too_large(error):
+    return jsonify({
+        'success': False,
+        'error': 'File too large',
+        'message': 'Uploaded file exceeds size limit'
+    }), 413
+
+# Initialize model when app starts
+print("🚀 Starting XML Validation API Server...")
+print("📱 CORS enabled for: http://localhost:3000")
+print("🔧 Available endpoints:")
+print("  - GET  /health   - Health check")
+print("  - POST /validate - Validate XML message")
+print("  - POST /upload   - Upload and validate files")
+print("  - GET  /status   - System status")
+
+# Initialize the AI model on startup
+init_model()
+
+if __name__ == '__main__':
+    # Run the Flask development server
+    app.run(
+        host='0.0.0.0',  # Allow connections from any IP
+        port=5000,       # Default Flask port
+        debug=True       # Enable debug mode for development
+    )
