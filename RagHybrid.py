@@ -808,30 +808,30 @@ class UploadFiles(Resource):
                 'error': f'Upload failed: {str(e)}'
             }, 500
 
-# Error handlers
-@api.errorhandler(404)
+# Error handlers for Flask app (not flask-restx api)
+@app.errorhandler(404)
 def not_found_error(error):
-    return {
+    return jsonify({
         'success': False,
         'error': 'Endpoint not found',
         'available_endpoints': ['/api/v1/system/health', '/api/v1/validation/validate', '/api/v1/validation/upload', '/api/v1/system/status']
-    }, 404
+    }), 404
 
-@api.errorhandler(500)
+@app.errorhandler(500)
 def internal_error(error):
-    return {
+    return jsonify({
         'success': False,
         'error': 'Internal server error',
         'message': 'Something went wrong on the server'
-    }, 500
+    }), 500
 
-@api.errorhandler(413)
+@app.errorhandler(413)
 def too_large(error):
-    return {
+    return jsonify({
         'success': False,
         'error': 'File too large',
         'message': 'Uploaded file exceeds size limit'
-    }, 413
+    }), 413
 
 # Initialize model when app starts
 print("🚀 Starting XML Validation API Server with Swagger Documentation...")
