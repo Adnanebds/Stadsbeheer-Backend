@@ -1,6 +1,8 @@
-# Complete Backend API with CORS for Frontend Integration
+# Complete Backend API with CORS and Swagger Documentation
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_restx import Api, Resource, fields, reqparse
+from werkzeug.datastructures import FileStorage
 import os
 import tempfile
 import json
@@ -21,6 +23,20 @@ app = Flask(__name__)
 # Enable CORS for localhost:3000 (React development server)
 CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"])
 
+# Initialize Swagger API
+api = Api(
+    app,
+    version='1.0',
+    title='XML Validation API',
+    description='API for validating XML messages against business rules using AI',
+    doc='/docs/',  # Swagger UI will be available at /docs/
+    prefix='/api/v1'  # Optional: add API versioning
+)
+
+# Create namespaces for better organization
+ns_validation = api.namespace('validation', description='XML message validation operations')
+ns_system = api.namespace('system', description='System status and health checks')
+
 # Global variable to store the AI model (loaded once)
 generation_pipeline = None
 
@@ -29,6 +45,42 @@ ALLOWED_EXTENSIONS = {
     'rules': {'pdf', 'docx', 'doc', 'txt'},
     'xml': {'xml'}
 }
+
+# Swagger Models for request/response documentation
+validation_response_model = api.model('ValidationResult', {
+    'success': fields.Boolean(required=True, description='Whether the validation was successful'),
+    'decision': fields.String(required=True, description='ACCEPTED, REJECTED, or ERROR'),
+    'technical_reasons': fields.String(required=True, description='Technical details about the decision'),
+    'explanation': fields.String(required=True, description='AI-generated explanation'),
+    'files_processed': fields.Raw(description='Information about processed files')
+})
+
+health_response_model = api.model('HealthCheck', {
+    'status': fields.String(required=True, description='API health status'),
+    'model_loaded': fields.Boolean(required=True, description='Whether AI model is loaded'),
+    'message': fields.String(required=True, description='Status message')
+})
+
+status_response_model = api.model('SystemStatus', {
+    'api_version': fields.String(required=True, description='API version'),
+    'status': fields.String(required=True, description='System status'),
+    'model_status': fields.Raw(description='AI model status information'),
+    'supported_files': fields.Raw(description='Supported file types')
+})
+
+upload_response_model = api.model('UploadResult', {
+    'success': fields.Boolean(required=True, description='Whether upload was successful'),
+    'message': fields.String(required=True, description='Upload status message'),
+    'files': fields.Raw(description='Information about uploaded files')
+})
+
+error_response_model = api.model('ErrorResponse', {
+    'success': fields.Boolean(required=True, description='Always false for errors'),
+    'error': fields.String(required=True, description='Error message'),
+    'decision': fields.String(description='Decision status for validation errors'),
+    'technical_reasons': fields.String(description='Technical error details'),
+    'explanation': fields.String(description='User-friendly error explanation')
+})
 
 def allowed_file(filename, file_type):
     return '.' in filename and \
@@ -495,7 +547,7 @@ def validate_xml_against_rules(xml_content, vectordb, generation_pipeline):
     print(f"\n⚖️ Step 4: Validating message")
     validation_result = validate_message(message_data, requirements)
     
-    # 5. Generate explanation with Gemma 2-2b
+    # 5. Generate explanation with AI
     print(f"\n🤖 Step 5: Generating explanation with AI")
     explanation = generate_explanation(generation_pipeline, validation_result, message_data)
     
@@ -524,231 +576,272 @@ def validate_xml_against_rules(xml_content, vectordb, generation_pipeline):
     
     return result
 
-# API Routes
+# API Routes using Flask-RESTX
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'model_loaded': generation_pipeline is not None,
-        'message': 'XML Validation API is running'
-    })
-
-@app.route('/validate', methods=['POST'])
-def validate_message_endpoint():
-    """
-    Validate XML message against business rules
-    Expects multipart/form-data with 'rules_file' and 'xml_file'
-    """
-    try:
-        # Check if files are present
-        if 'rules_file' not in request.files or 'xml_file' not in request.files:
-            return jsonify({
-                'success': False,
-                'error': 'Both rules_file and xml_file are required',
-                'decision': 'ERROR',
-                'technical_reasons': 'Missing files',
-                'explanation': 'Please upload both business rules and XML message files'
-            }), 400
-        
-        rules_file = request.files['rules_file']
-        xml_file = request.files['xml_file']
-        
-        # Check if files have valid names
-        if rules_file.filename == '' or xml_file.filename == '':
-            return jsonify({
-                'success': False,
-                'error': 'Files must have valid names',
-                'decision': 'ERROR',
-                'technical_reasons': 'Empty filenames',
-                'explanation': 'Please upload files with valid names'
-            }), 400
-        
-        # Check file extensions
-        if not allowed_file(rules_file.filename, 'rules'):
-            return jsonify({
-                'success': False,
-                'error': f'Invalid rules file type. Allowed: {", ".join(ALLOWED_EXTENSIONS["rules"])}',
-                'decision': 'ERROR',
-                'technical_reasons': 'Invalid file type',
-                'explanation': 'Business rules file must be PDF, DOCX, DOC, or TXT'
-            }), 400
-        
-        if not allowed_file(xml_file.filename, 'xml'):
-            return jsonify({
-                'success': False,
-                'error': 'XML file must have .xml extension',
-                'decision': 'ERROR',
-                'technical_reasons': 'Invalid file type',
-                'explanation': 'Message file must be XML format'
-            }), 400
-        
-        # Initialize model if not already done
-        global generation_pipeline
-        if generation_pipeline is None:
-            init_model()
-        
-        # Save uploaded files temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix=get_file_extension(rules_file.filename)) as tmp_rules:
-            rules_file.save(tmp_rules.name)
-            rules_path = tmp_rules.name
-        
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.xml', mode='w+b') as tmp_xml:
-            xml_file.save(tmp_xml.name)
-            xml_path = tmp_xml.name
-        
-        try:
-            # Load business rules
-            print(f"📚 Loading business rules from: {rules_file.filename}")
-            rules_vectordb = load_business_rules(rules_path)
-            
-            # Read XML content
-            print(f"📄 Reading XML file: {xml_file.filename}")
-            xml_content = read_xml_file(xml_path)
-            
-            # Validate
-            print(f"⚖️ Starting validation...")
-            result = validate_xml_against_rules(xml_content, rules_vectordb, generation_pipeline)
-            
-            # Add success flag and file info
-            result['success'] = True
-            result['files_processed'] = {
-                'rules_file': rules_file.filename,
-                'xml_file': xml_file.filename
-            }
-            
-            print(f"✅ Validation complete: {result['decision']}")
-            return jsonify(result), 200
-            
-        finally:
-            # Clean up temporary files
-            try:
-                os.unlink(rules_path)
-                os.unlink(xml_path)
-            except Exception as cleanup_error:
-                print(f"Warning: Could not clean up temp files: {cleanup_error}")
-                
-    except Exception as e:
-        print(f"❌ Validation error: {str(e)}")
-        print(f"❌ Full traceback: {traceback.format_exc()}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'decision': 'ERROR', 
-            'technical_reasons': f'System error: {str(e)}',
-            'explanation': 'An error occurred during validation. Please check your files and try again.'
-        }), 500
-
-@app.route('/upload', methods=['POST'])
-def upload_files():
-    """
-    Alternative upload endpoint that just processes and returns file info
-    Can be used for file validation before sending to /validate
-    """
-    try:
-        uploaded_files = {}
-        
-        # Process rules file if present
-        if 'rules_file' in request.files:
-            rules_file = request.files['rules_file']
-            if rules_file.filename != '':
-                if allowed_file(rules_file.filename, 'rules'):
-                    uploaded_files['rules_file'] = {
-                        'filename': secure_filename(rules_file.filename),
-                        'size': len(rules_file.read()),
-                        'type': rules_file.content_type,
-                        'valid': True
-                    }
-                    rules_file.seek(0)  # Reset file pointer
-                else:
-                    uploaded_files['rules_file'] = {
-                        'filename': rules_file.filename,
-                        'valid': False,
-                        'error': f'Invalid file type. Allowed: {", ".join(ALLOWED_EXTENSIONS["rules"])}'
-                    }
-        
-        # Process XML file if present
-        if 'xml_file' in request.files:
-            xml_file = request.files['xml_file']
-            if xml_file.filename != '':
-                if allowed_file(xml_file.filename, 'xml'):
-                    uploaded_files['xml_file'] = {
-                        'filename': secure_filename(xml_file.filename),
-                        'size': len(xml_file.read()),
-                        'type': xml_file.content_type,
-                        'valid': True
-                    }
-                    xml_file.seek(0)  # Reset file pointer
-                else:
-                    uploaded_files['xml_file'] = {
-                        'filename': xml_file.filename,
-                        'valid': False,
-                        'error': 'File must have .xml extension'
-                    }
-        
-        return jsonify({
-            'success': True,
-            'message': 'Files processed successfully',
-            'files': uploaded_files
-        }), 200
-        
-    except Exception as e:
-        print(f"❌ Upload error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Upload failed: {str(e)}'
-        }), 500
-
-@app.route('/status', methods=['GET'])
-def get_status():
-    """Get current system status"""
-    return jsonify({
-        'api_version': '1.0',
-        'status': 'running',
-        'model_status': {
-            'loaded': generation_pipeline is not None,
-            'model_name': 'google/gemma-2-2b-it' if generation_pipeline else 'Not loaded'
-        },
-        'supported_files': {
-            'business_rules': list(ALLOWED_EXTENSIONS['rules']),
-            'xml_messages': list(ALLOWED_EXTENSIONS['xml'])
+@ns_system.route('/health')
+class HealthCheck(Resource):
+    @ns_system.doc('health_check')
+    @ns_system.marshal_with(health_response_model)
+    def get(self):
+        """Health check endpoint - Check if the API is running properly"""
+        return {
+            'status': 'healthy',
+            'model_loaded': generation_pipeline is not None,
+            'message': 'XML Validation API is running'
         }
-    })
+
+@ns_system.route('/status')
+class SystemStatus(Resource):
+    @ns_system.doc('system_status')
+    @ns_system.marshal_with(status_response_model)
+    def get(self):
+        """Get current system status and configuration"""
+        return {
+            'api_version': '1.0',
+            'status': 'running',
+            'model_status': {
+                'loaded': generation_pipeline is not None,
+                'model_name': 'google/gemma-2-2b-it' if generation_pipeline else 'Not loaded'
+            },
+            'supported_files': {
+                'business_rules': list(ALLOWED_EXTENSIONS['rules']),
+                'xml_messages': list(ALLOWED_EXTENSIONS['xml'])
+            }
+        }
+
+# File upload parser
+file_upload_parser = reqparse.RequestParser()
+file_upload_parser.add_argument('rules_file', 
+                               location='files',
+                               type=FileStorage, 
+                               required=True,
+                               help='Business rules file (PDF, DOCX, DOC, or TXT)')
+file_upload_parser.add_argument('xml_file', 
+                               location='files',
+                               type=FileStorage, 
+                               required=True,
+                               help='XML message file to validate')
+
+@ns_validation.route('/validate')
+class ValidateMessage(Resource):
+    @ns_validation.doc('validate_xml_message')
+    @ns_validation.expect(file_upload_parser)
+    @ns_validation.marshal_with(validation_response_model, code=200)
+    @ns_validation.marshal_with(error_response_model, code=400)
+    @ns_validation.marshal_with(error_response_model, code=500)
+    def post(self):
+        """
+        Validate XML message against business rules
+        
+        Upload both a business rules file and an XML message file.
+        The system will parse the business rules, extract requirements,
+        and validate the XML message against those requirements using AI.
+        """
+        try:
+            args = file_upload_parser.parse_args()
+            rules_file = args['rules_file']
+            xml_file = args['xml_file']
+            
+            # Check if files have valid names
+            if not rules_file.filename or not xml_file.filename:
+                return {
+                    'success': False,
+                    'error': 'Files must have valid names',
+                    'decision': 'ERROR',
+                    'technical_reasons': 'Empty filenames',
+                    'explanation': 'Please upload files with valid names'
+                }, 400
+            
+            # Check file extensions
+            if not allowed_file(rules_file.filename, 'rules'):
+                return {
+                    'success': False,
+                    'error': f'Invalid rules file type. Allowed: {", ".join(ALLOWED_EXTENSIONS["rules"])}',
+                    'decision': 'ERROR',
+                    'technical_reasons': 'Invalid file type',
+                    'explanation': 'Business rules file must be PDF, DOCX, DOC, or TXT'
+                }, 400
+            
+            if not allowed_file(xml_file.filename, 'xml'):
+                return {
+                    'success': False,
+                    'error': 'XML file must have .xml extension',
+                    'decision': 'ERROR',
+                    'technical_reasons': 'Invalid file type',
+                    'explanation': 'Message file must be XML format'
+                }, 400
+            
+            # Initialize model if not already done
+            global generation_pipeline
+            if generation_pipeline is None:
+                init_model()
+            
+            # Save uploaded files temporarily
+            with tempfile.NamedTemporaryFile(delete=False, suffix=get_file_extension(rules_file.filename)) as tmp_rules:
+                rules_file.save(tmp_rules.name)
+                rules_path = tmp_rules.name
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xml', mode='w+b') as tmp_xml:
+                xml_file.save(tmp_xml.name)
+                xml_path = tmp_xml.name
+            
+            try:
+                # Load business rules
+                print(f"📚 Loading business rules from: {rules_file.filename}")
+                rules_vectordb = load_business_rules(rules_path)
+                
+                # Read XML content
+                print(f"📄 Reading XML file: {xml_file.filename}")
+                xml_content = read_xml_file(xml_path)
+                
+                # Validate
+                print(f"⚖️ Starting validation...")
+                result = validate_xml_against_rules(xml_content, rules_vectordb, generation_pipeline)
+                
+                # Add success flag and file info
+                result['success'] = True
+                result['files_processed'] = {
+                    'rules_file': rules_file.filename,
+                    'xml_file': xml_file.filename
+                }
+                
+                print(f"✅ Validation complete: {result['decision']}")
+                return result, 200
+                
+            finally:
+                # Clean up temporary files
+                try:
+                    os.unlink(rules_path)
+                    os.unlink(xml_path)
+                except Exception as cleanup_error:
+                    print(f"Warning: Could not clean up temp files: {cleanup_error}")
+                    
+        except Exception as e:
+            print(f"❌ Validation error: {str(e)}")
+            print(f"❌ Full traceback: {traceback.format_exc()}")
+            return {
+                'success': False,
+                'error': str(e),
+                'decision': 'ERROR', 
+                'technical_reasons': f'System error: {str(e)}',
+                'explanation': 'An error occurred during validation. Please check your files and try again.'
+            }, 500
+
+# Optional file parser for upload endpoint
+upload_parser = reqparse.RequestParser()
+upload_parser.add_argument('rules_file', 
+                          location='files',
+                          type=FileStorage, 
+                          required=False,
+                          help='Business rules file (PDF, DOCX, DOC, or TXT)')
+upload_parser.add_argument('xml_file', 
+                          location='files',
+                          type=FileStorage, 
+                          required=False,
+                          help='XML message file')
+
+@ns_validation.route('/upload')
+class UploadFiles(Resource):
+    @ns_validation.doc('upload_files')
+    @ns_validation.expect(upload_parser)
+    @ns_validation.marshal_with(upload_response_model, code=200)
+    @ns_validation.marshal_with(error_response_model, code=500)
+    def post(self):
+        """
+        Upload and validate files without processing
+        
+        This endpoint can be used to validate file formats and get file information
+        before sending them to the main validation endpoint.
+        """
+        try:
+            args = upload_parser.parse_args()
+            uploaded_files = {}
+            
+            # Process rules file if present
+            if args['rules_file']:
+                rules_file = args['rules_file']
+                if rules_file.filename:
+                    if allowed_file(rules_file.filename, 'rules'):
+                        uploaded_files['rules_file'] = {
+                            'filename': secure_filename(rules_file.filename),
+                            'size': len(rules_file.read()),
+                            'type': rules_file.content_type,
+                            'valid': True
+                        }
+                        rules_file.seek(0)  # Reset file pointer
+                    else:
+                        uploaded_files['rules_file'] = {
+                            'filename': rules_file.filename,
+                            'valid': False,
+                            'error': f'Invalid file type. Allowed: {", ".join(ALLOWED_EXTENSIONS["rules"])}'
+                        }
+            
+            # Process XML file if present
+            if args['xml_file']:
+                xml_file = args['xml_file']
+                if xml_file.filename:
+                    if allowed_file(xml_file.filename, 'xml'):
+                        uploaded_files['xml_file'] = {
+                            'filename': secure_filename(xml_file.filename),
+                            'size': len(xml_file.read()),
+                            'type': xml_file.content_type,
+                            'valid': True
+                        }
+                        xml_file.seek(0)  # Reset file pointer
+                    else:
+                        uploaded_files['xml_file'] = {
+                            'filename': xml_file.filename,
+                            'valid': False,
+                            'error': 'File must have .xml extension'
+                        }
+            
+            return {
+                'success': True,
+                'message': 'Files processed successfully',
+                'files': uploaded_files
+            }, 200
+            
+        except Exception as e:
+            print(f"❌ Upload error: {str(e)}")
+            return {
+                'success': False,
+                'error': f'Upload failed: {str(e)}'
+            }, 500
 
 # Error handlers
-@app.errorhandler(404)
+@api.errorhandler(404)
 def not_found_error(error):
-    return jsonify({
+    return {
         'success': False,
         'error': 'Endpoint not found',
-        'available_endpoints': ['/health', '/validate', '/upload', '/status']
-    }), 404
+        'available_endpoints': ['/api/v1/system/health', '/api/v1/validation/validate', '/api/v1/validation/upload', '/api/v1/system/status']
+    }, 404
 
-@app.errorhandler(500)
+@api.errorhandler(500)
 def internal_error(error):
-    return jsonify({
+    return {
         'success': False,
         'error': 'Internal server error',
         'message': 'Something went wrong on the server'
-    }), 500
+    }, 500
 
-@app.errorhandler(413)
+@api.errorhandler(413)
 def too_large(error):
-    return jsonify({
+    return {
         'success': False,
         'error': 'File too large',
         'message': 'Uploaded file exceeds size limit'
-    }), 413
+    }, 413
 
 # Initialize model when app starts
-print("🚀 Starting XML Validation API Server...")
+print("🚀 Starting XML Validation API Server with Swagger Documentation...")
 print("📱 CORS enabled for: http://localhost:3000")
+print("📚 Swagger UI available at: http://localhost:5000/docs/")
 print("🔧 Available endpoints:")
-print("  - GET  /health   - Health check")
-print("  - POST /validate - Validate XML message")
-print("  - POST /upload   - Upload and validate files")
-print("  - GET  /status   - System status")
+print("  - GET  /api/v1/system/health   - Health check")
+print("  - POST /api/v1/validation/validate - Validate XML message")
+print("  - POST /api/v1/validation/upload   - Upload and validate files")
+print("  - GET  /api/v1/system/status       - System status")
 
 # Initialize the AI model on startup
 init_model()
