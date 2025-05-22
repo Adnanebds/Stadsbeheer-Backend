@@ -40,6 +40,32 @@ ns_system = api.namespace('system', description='System status and health checks
 # Global variable to store the AI model (loaded once)
 generation_pipeline = None
 
+# Install additional PDF dependencies if not already installed
+import subprocess
+import sys
+
+def install_pdf_dependencies():
+    """Install required PDF processing libraries"""
+    try:
+        import pypdf
+        print("✅ pypdf already installed")
+    except ImportError:
+        print("📦 Installing pypdf...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "pypdf"])
+    
+    try:
+        import pdfplumber
+        print("✅ pdfplumber already available")
+    except ImportError:
+        print("📦 Installing pdfplumber...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "pdfplumber"])
+
+# Call this at startup
+try:
+    install_pdf_dependencies()
+except Exception as e:
+    print(f"⚠️ Warning: Could not install PDF dependencies: {e}")
+
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {
     'rules': {'pdf', 'docx', 'doc', 'txt'},
@@ -158,22 +184,77 @@ def load_business_rules(file_path):
     
     try:
         if file_extension == 'pdf':
-            loader = PyPDFLoader(file_path)
+            print("📄 Attempting to load PDF with PyPDFLoader...")
+            try:
+                loader = PyPDFLoader(file_path)
+                documents = loader.load()
+                print(f"✅ Successfully loaded PDF with PyPDFLoader: {len(documents)} pages")
+            except Exception as pdf_error:
+                print(f"❌ PyPDFLoader failed: {pdf_error}")
+                print("🔄 Trying alternative PDF loaders...")
+                
+                # Try with UnstructuredFileLoader
+                try:
+                    loader = UnstructuredFileLoader(file_path)
+                    documents = loader.load()
+                    print(f"✅ Successfully loaded PDF with UnstructuredFileLoader: {len(documents)} documents")
+                except Exception as unstructured_error:
+                    print(f"❌ UnstructuredFileLoader also failed: {unstructured_error}")
+                    raise Exception(f"Could not load PDF file. Try converting it to TXT format. PyPDF error: {pdf_error}, Unstructured error: {unstructured_error}")
+                    
         elif file_extension in ['docx', 'doc']:
+            print("📄 Loading DOCX/DOC file...")
             loader = Docx2txtLoader(file_path)
+            documents = loader.load()
         else:
+            print("📄 Loading text file...")
             # Try different encodings for text files
             try:
                 loader = TextLoader(file_path, encoding='utf-8')
+                documents = loader.load()
             except:
                 try:
                     loader = TextLoader(file_path, encoding='latin-1')
+                    documents = loader.load()
                 except:
                     # Fallback to unstructured loader which is more robust
                     loader = UnstructuredFileLoader(file_path)
+                    documents = loader.load()
         
-        documents = loader.load()
-        print(f"Successfully loaded {len(documents)} document(s) from {file_path}")
+        if not documents:
+            raise Exception("No documents were loaded from the file")
+            
+        # Check if we got readable content
+        total_text = ' '.join([doc.page_content for doc in documents])
+        readable_chars = sum(1 for c in total_text if c.isprintable() and ord(c) < 256)
+        total_chars = len(total_text)
+        
+        if total_chars == 0:
+            raise Exception("Loaded documents contain no text")
+            
+        readability_ratio = readable_chars / total_chars if total_chars > 0 else 0
+        print(f"📊 Content readability: {readability_ratio:.2%} ({readable_chars}/{total_chars} readable chars)")
+        
+        if readability_ratio < 0.7:  # Less than 70% readable
+            print("⚠️ WARNING: Low readability detected. The file might be corrupted or in an unsupported format.")
+            print("💡 SUGGESTION: Try converting your PDF to TXT format for better results.")
+            
+            # Try to clean up the text
+            cleaned_docs = []
+            for doc in documents:
+                # Remove non-printable characters and keep only Dutch/English text
+                cleaned_text = ''.join(c for c in doc.page_content if c.isprintable() and ord(c) < 256)
+                if len(cleaned_text) > 100:  # Only keep chunks with substantial text
+                    from langchain.schema import Document
+                    cleaned_docs.append(Document(page_content=cleaned_text, metadata=doc.metadata))
+            
+            if cleaned_docs:
+                documents = cleaned_docs
+                print(f"🧹 Cleaned documents: {len(documents)} documents with readable text")
+            else:
+                raise Exception("After cleaning, no readable text remains. Please convert your PDF to TXT format.")
+        
+        print(f"✅ Successfully loaded {len(documents)} document(s) from {file_path}")
         
         # Split documents with focus on activity sections
         text_splitter = RecursiveCharacterTextSplitter(
@@ -184,13 +265,23 @@ def load_business_rules(file_path):
         chunks = text_splitter.split_documents(documents)
         print(f"Split into {len(chunks)} chunks")
         
-        # Print a sample chunk to verify content
+        # Print a sample chunk to verify content is readable
         if chunks:
-            print("\nSample chunk content:")
-            print(chunks[0].page_content[:200] + "..." if len(chunks[0].page_content) > 200 else chunks[0].page_content)
+            sample_content = chunks[0].page_content[:500]
+            print("\n📄 Sample chunk content:")
+            print(sample_content + "..." if len(chunks[0].page_content) > 500 else sample_content)
+            
+            # Check if sample contains business rule keywords
+            dutch_keywords = ['artikel', 'activiteit', 'melding', 'informatie', 'vereisten', 'bodem', 'saneren']
+            found_keywords = [kw for kw in dutch_keywords if kw.lower() in sample_content.lower()]
+            
+            if found_keywords:
+                print(f"✅ Found business rule keywords: {found_keywords}")
+            else:
+                print("⚠️ WARNING: No business rule keywords found in sample. File might not contain proper business rules.")
         
         # Initialize vector store
-        print("Creating embeddings... (this may take a moment)")
+        print("🔍 Creating embeddings... (this may take a moment)")
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
         vectordb = FAISS.from_documents(chunks, embeddings)
         print("✅ Vector database created successfully")
@@ -198,44 +289,13 @@ def load_business_rules(file_path):
         return vectordb
     
     except Exception as e:
-        print(f"Error loading document: {e}")
-        # A more robust fallback approach
-        print("Trying alternative loading method...")
-        try:
-            # Read raw bytes and decode with a very permissive encoding
-            with open(file_path, 'rb') as f:
-                content = f.read()
-            
-            # Try to decode with different encodings
-            for encoding in ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']:
-                try:
-                    text = content.decode(encoding, errors='replace')
-                    print(f"Successfully decoded with {encoding}")
-                    
-                    # Create a document
-                    from langchain.schema import Document
-                    document = Document(page_content=text, metadata={"source": file_path})
-                    
-                    # Split into chunks
-                    text_splitter = RecursiveCharacterTextSplitter(
-                        chunk_size=1500,
-                        chunk_overlap=300
-                    )
-                    chunks = text_splitter.split_documents([document])
-                    
-                    # Initialize vector store
-                    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-                    vectordb = FAISS.from_documents(chunks, embeddings)
-                    
-                    return vectordb
-                except UnicodeDecodeError:
-                    continue
-            
-            raise RuntimeError("Could not decode the file with any encoding")
-            
-        except Exception as inner_e:
-            print(f"Alternative loading also failed: {inner_e}")
-            raise
+        print(f"❌ Error loading document: {e}")
+        print("\n💡 TROUBLESHOOTING SUGGESTIONS:")
+        print("1. Convert your PDF to TXT format using a PDF reader")
+        print("2. Make sure the PDF contains searchable text (not just images)")
+        print("3. Try uploading a DOCX or TXT version of the business rules")
+        print("4. Check if the PDF is password protected or corrupted")
+        raise
 
 def read_xml_file(file_path):
     print(f"Reading XML file: {file_path}")
