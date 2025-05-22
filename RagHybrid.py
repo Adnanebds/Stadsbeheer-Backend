@@ -43,7 +43,7 @@ generation_pipeline = None
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {
     'rules': {'pdf', 'docx', 'doc', 'txt'},
-    'xml': {'xml'}
+    'xml': {'xml', 'txt'}  # Allow both .xml and .txt for XML content
 }
 
 # Swagger Models for request/response documentation
@@ -620,7 +620,7 @@ file_upload_parser.add_argument('xml_file',
                                location='files',
                                type=FileStorage, 
                                required=True,
-                               help='XML message file to validate')
+                               help='XML message file (.xml or .txt with XML content)')
 
 @ns_validation.route('/validate')
 class ValidateMessage(Resource):
@@ -665,10 +665,10 @@ class ValidateMessage(Resource):
             if not allowed_file(xml_file.filename, 'xml'):
                 return {
                     'success': False,
-                    'error': 'XML file must have .xml extension',
+                    'error': 'XML file must have .xml or .txt extension',
                     'decision': 'ERROR',
                     'technical_reasons': 'Invalid file type',
-                    'explanation': 'Message file must be XML format'
+                    'explanation': 'Message file must be XML format (.xml) or XML content in text file (.txt)'
                 }, 400
             
             # Initialize model if not already done
@@ -738,7 +738,7 @@ upload_parser.add_argument('xml_file',
                           location='files',
                           type=FileStorage, 
                           required=False,
-                          help='XML message file')
+                          help='XML message file (.xml or .txt with XML content)')
 
 @ns_validation.route('/upload')
 class UploadFiles(Resource):
@@ -792,7 +792,7 @@ class UploadFiles(Resource):
                         uploaded_files['xml_file'] = {
                             'filename': xml_file.filename,
                             'valid': False,
-                            'error': 'File must have .xml extension'
+                            'error': 'File must have .xml or .txt extension'
                         }
             
             return {
