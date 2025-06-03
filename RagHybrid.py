@@ -23,6 +23,13 @@ app = Flask(__name__)
 # Enable CORS for localhost:3000 (React development server)
 CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"])
 
+from huggingface_hub import login
+import os
+
+hf_token = os.environ.get("HF_TOKEN")
+if hf_token:
+    login(hf_token)
+
 # Initialize Swagger API
 api = Api(
     app,
