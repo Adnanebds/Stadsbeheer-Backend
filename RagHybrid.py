@@ -30,11 +30,11 @@ CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"])
 
 # Initialize Supabase client
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_ANON_KEY")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     print("⚠️ WARNING: Supabase credentials not found in environment variables")
-    print("Please set SUPABASE_URL and SUPABASE_ANON_KEY")
+    print("Please set SUPABASE_URL and SUPABASE_KEY")
     supabase_client = None
 else:
     try:
