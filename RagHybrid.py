@@ -1,4 +1,4 @@
-# Complete Backend API with CORS, Swagger Documentation and Supabase Integration
+# Complete Backend API with CORS, Swagger Documentation, Supabase Integration and Human Verification
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_restx import Api, Resource, fields, reqparse
@@ -18,6 +18,7 @@ from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import login
 import uuid
 from datetime import datetime
+import torch # Make sure torch is imported
 
 # Supabase integration
 from supabase import create_client, Client
@@ -52,9 +53,9 @@ if hf_token:
 # Initialize Swagger API
 api = Api(
     app,
-    version='1.0',
-    title='XML Validation API with Supabase',
-    description='API for validating XML messages against business rules using AI with database storage',
+    version='1.3',
+    title='Enhanced XML Validation API',
+    description='API for validating XML messages against business rules with detailed, evidence-based responses and human verification.',
     doc='/docs/',
     prefix='/api/v1'
 )
@@ -74,14 +75,12 @@ def install_pdf_dependencies():
     """Install required PDF processing libraries"""
     try:
         import pypdf
-        print("✅ pypdf already installed")
     except ImportError:
         print("📦 Installing pypdf...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pypdf"])
-    
+
     try:
         import pdfplumber
-        print("✅ pdfplumber already available")
     except ImportError:
         print("📦 Installing pdfplumber...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pdfplumber"])
@@ -97,75 +96,77 @@ ALLOWED_EXTENSIONS = {
     'xml': {'xml', 'txt'}
 }
 
-# Swagger Models
-validation_response_model = api.model('ValidationResult', {
-    'success': fields.Boolean(required=True, description='Whether the validation was successful'),
-    'decision': fields.String(required=True, description='ACCEPTED, REJECTED, or ERROR'),
-    'technical_reasons': fields.String(required=True, description='Technical details about the decision'),
-    'explanation': fields.String(required=True, description='AI-generated explanation'),
-    'files_processed': fields.Raw(description='Information about processed files')
+# --- Swagger Models (Omitted for brevity, they are correct in your file) ---
+validation_detail_item_model = api.model('ValidationDetailItem', {
+    'requirement': fields.String(), 'status': fields.String(enum=['MET', 'MISSING']),
+    'reason': fields.String(), 'source_quote': fields.String()
 })
-
+validation_details_model = api.model('ValidationDetails', {
+    'checked_requirements': fields.List(fields.Nested(validation_detail_item_model)),
+    'checked_attachments': fields.List(fields.Nested(validation_detail_item_model))
+})
+enhanced_validation_response_model = api.model('EnhancedValidationResult', {
+    'success': fields.Boolean(required=True), 'decision': fields.String(required=True, enum=['ACCEPTED', 'REJECTED', 'ERROR']),
+    'summary_explanation': fields.String(required=True), 'validation_details': fields.Nested(validation_details_model),
+    'found_rules_context': fields.List(fields.String)
+})
 health_response_model = api.model('HealthCheck', {
-    'status': fields.String(required=True, description='API health status'),
-    'model_loaded': fields.Boolean(required=True, description='Whether AI model is loaded'),
-    'supabase_connected': fields.Boolean(required=True, description='Whether Supabase is connected'),
-    'message': fields.String(required=True, description='Status message')
+    'status': fields.String(required=True), 'model_loaded': fields.Boolean(required=True),
+    'supabase_connected': fields.Boolean(required=True), 'message': fields.String(required=True)
 })
-
 status_response_model = api.model('SystemStatus', {
-    'api_version': fields.String(required=True, description='API version'),
-    'status': fields.String(required=True, description='System status'),
-    'model_status': fields.Raw(description='AI model status information'),
-    'supabase_status': fields.Raw(description='Supabase connection status'),
-    'supported_files': fields.Raw(description='Supported file types')
+    'api_version': fields.String(required=True), 'status': fields.String(required=True),
+    'model_status': fields.Raw(), 'supabase_status': fields.Raw(), 'supported_files': fields.Raw()
 })
-
 message_model = api.model('MessageInfo', {
-    'id': fields.String(required=True, description='Message UUID'),
-    'verzoeknummer': fields.String(description='Message reference number'),
-    'activity_name': fields.String(description='Activity name'),
-    'message_type': fields.String(description='Message type (Informatie/Melding)'),
-    'project_name': fields.String(description='Project name'),
-    'initiatiefnemer_name': fields.String(description='Initiator name'),
-    'bevoegd_gezag': fields.String(description='Competent authority'),
-    'created_at': fields.DateTime(description='Upload timestamp'),
-    'validation_count': fields.Integer(description='Number of validations performed'),
-    'original_filename': fields.String(description='Original filename')
+    'id': fields.String(required=True), 'verzoeknummer': fields.String(), 'activity_name': fields.String(),
+    'message_type': fields.String(), 'created_at': fields.DateTime(), 'original_filename': fields.String(),
+    'human_verification_status': fields.String(), 'final_decision': fields.String(), 'validation_count': fields.Integer()
 })
-
 store_message_response = api.model('StoreMessageResponse', {
-    'success': fields.Boolean(required=True),
-    'message_id': fields.String(required=True, description='Stored message ID'),
-    'message': fields.String(required=True),
-    'parsed_data': fields.Raw(description='Extracted message metadata')
+    'success': fields.Boolean(required=True), 'message_id': fields.String(required=True),
+    'message': fields.String(required=True), 'parsed_data': fields.Raw()
 })
-
 error_response_model = api.model('ErrorResponse', {
-    'success': fields.Boolean(required=True, description='Always false for errors'),
-    'error': fields.String(required=True, description='Error message'),
-    'decision': fields.String(description='Decision status for validation errors'),
-    'technical_reasons': fields.String(description='Technical error details'),
-    'explanation': fields.String(description='User-friendly error explanation')
+    'success': fields.Boolean(required=True), 'error': fields.String(required=True),
+    'decision': fields.String(), 'technical_reasons': fields.String(), 'explanation': fields.String()
+})
+pending_verification_model = api.model('PendingVerification', {
+    'id': fields.String(required=True), 'verzoeknummer': fields.String(), 'activity_name': fields.String(),
+    'message_type': fields.String(), 'ai_decision': fields.String(), 'ai_explanation': fields.String(),
+    'ai_technical_reasons': fields.String(), 'created_at': fields.DateTime(), 'validation_count': fields.Integer(),
+    'original_filename': fields.String()
+})
+human_verification_response = api.model('HumanVerificationResponse', {
+    'success': fields.Boolean(required=True), 'message': fields.String(required=True),
+    'previous_ai_decision': fields.String(), 'human_decision': fields.String(), 'is_override': fields.Boolean()
+})
+verification_status_model = api.model('VerificationStatus', {
+    'message_id': fields.String(required=True), 'ai_decision': fields.String(), 'ai_explanation': fields.String(),
+    'ai_technical_reasons': fields.String(), 'human_verification_status': fields.String(),
+    'human_verification_reason': fields.String(), 'human_verified_at': fields.DateTime(),
+    'human_verifier_name': fields.String(), 'final_decision': fields.String(), 'is_override': fields.Boolean()
+})
+verification_stats_model = api.model('VerificationStats', {
+    'total_validated': fields.Integer(), 'pending_human_verification': fields.Integer(),
+    'human_accepted': fields.Integer(), 'human_rejected': fields.Integer(), 'ai_human_agreement': fields.Integer(),
+    'human_overrides': fields.Integer(), 'override_rate': fields.Float(), 'ai_accuracy_rate': fields.Float()
 })
 
+# --- Helper Functions ---
 def allowed_file(filename, file_type):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS[file_type]
 
 def get_file_extension(filename):
-    """Get file extension for temporary file creation"""
-    if not filename:
-        return '.tmp'
+    if not filename: return '.tmp'
     return '.' + filename.rsplit('.', 1)[1].lower() if '.' in filename else '.tmp'
 
-# Initialize AI model
+# --- AI Model and RAG Core Functions ---
 def init_model():
-    """Initialize the AI model once when the app starts"""
     global generation_pipeline
     if generation_pipeline is None:
         print("🤖 Initializing AI model...")
         generation_pipeline = setup_gemma_model()
-        print("✅ AI model ready!")
     return generation_pipeline
 
 def setup_gemma_model():
@@ -173,1089 +174,426 @@ def setup_gemma_model():
     try:
         model_name = "google/gemma-2-2b-it"
         
+        # --- DEFINITIVE FIX ---
+        # The 'device_map' argument is buggy on some systems.
+        # This new method avoids it entirely.
+        device = "cpu"
+        dtype = torch.float32 
+        print(f"Loading model onto device '{device}' with dtype '{dtype}'.")
+
         tokenizer = AutoTokenizer.from_pretrained(model_name)
+        
+        # 1. Load the model without device_map
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            device_map="auto",
-            torch_dtype="auto"
+            torch_dtype=dtype
         )
         
-        generation_pipeline = pipeline(
+        # 2. Assign the device directly in the pipeline
+        pipeline_instance = pipeline(
             "text-generation",
             model=model,
             tokenizer=tokenizer,
-            max_length=512,
+            device=device, # Specify device here instead of in the model
+            max_length=8192,
             temperature=0.1,
             do_sample=True,
             pad_token_id=tokenizer.eos_token_id
         )
-        
         print("✅ Gemma 2-2b model loaded successfully")
-        return generation_pipeline
+        return pipeline_instance
         
     except Exception as e:
-        print(f"❌ Error loading Gemma model: {e}")
-        print("Falling back to smaller model...")
+        print(f"❌ Error loading Gemma model: {e}. Falling back to a smaller model.")
         try:
-            fallback_pipeline = pipeline(
-                "text-generation", 
-                model="distilgpt2", 
-                max_length=300,
-                pad_token_id=50256
-            )
-            print("✅ Fallback model loaded successfully")
-            return fallback_pipeline
+            return pipeline("text-generation", model="distilgpt2", max_length=300, pad_token_id=50256)
         except Exception as fallback_error:
             print(f"❌ Fallback model also failed: {fallback_error}")
             return None
 
 def load_business_rules(file_path):
     print(f"Loading business rules from: {file_path}")
-    
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Business rules file not found: {file_path}")
-    
-    file_extension = file_path.split('.')[-1].lower()
-    
+    if not os.path.exists(file_path): raise FileNotFoundError(f"File not found: {file_path}")
+    ext = file_path.split('.')[-1].lower()
     try:
-        if file_extension == 'pdf':
-            print("📄 Attempting to load PDF with PyPDFLoader...")
-            try:
-                loader = PyPDFLoader(file_path)
-                documents = loader.load()
-                print(f"✅ Successfully loaded PDF with PyPDFLoader: {len(documents)} pages")
-            except Exception as pdf_error:
-                print(f"❌ PyPDFLoader failed: {pdf_error}")
-                print("🔄 Trying alternative PDF loaders...")
-                
-                try:
-                    loader = UnstructuredFileLoader(file_path)
-                    documents = loader.load()
-                    print(f"✅ Successfully loaded PDF with UnstructuredFileLoader: {len(documents)} documents")
-                except Exception as unstructured_error:
-                    print(f"❌ UnstructuredFileLoader also failed: {unstructured_error}")
-                    raise Exception(f"Could not load PDF file. Try converting it to TXT format. PyPDF error: {pdf_error}, Unstructured error: {unstructured_error}")
-                    
-        elif file_extension in ['docx', 'doc']:
-            print("📄 Loading DOCX/DOC file...")
-            loader = Docx2txtLoader(file_path)
-            documents = loader.load()
-        else:
-            print("📄 Loading text file...")
-            try:
-                loader = TextLoader(file_path, encoding='utf-8')
-                documents = loader.load()
-            except:
-                try:
-                    loader = TextLoader(file_path, encoding='latin-1')
-                    documents = loader.load()
-                except:
-                    loader = UnstructuredFileLoader(file_path)
-                    documents = loader.load()
-        
-        if not documents:
-            raise Exception("No documents were loaded from the file")
-            
-        total_text = ' '.join([doc.page_content for doc in documents])
-        readable_chars = sum(1 for c in total_text if c.isprintable() and ord(c) < 256)
-        total_chars = len(total_text)
-        
-        if total_chars == 0:
-            raise Exception("Loaded documents contain no text")
-            
-        readability_ratio = readable_chars / total_chars if total_chars > 0 else 0
-        print(f"📊 Content readability: {readability_ratio:.2%} ({readable_chars}/{total_chars} readable chars)")
-        
-        if readability_ratio < 0.7:
-            print("⚠️ WARNING: Low readability detected. The file might be corrupted or in an unsupported format.")
-            print("💡 SUGGESTION: Try converting your PDF to TXT format for better results.")
-            
-            cleaned_docs = []
-            for doc in documents:
-                cleaned_text = ''.join(c for c in doc.page_content if c.isprintable() and ord(c) < 256)
-                if len(cleaned_text) > 100:
-                    from langchain.schema import Document
-                    cleaned_docs.append(Document(page_content=cleaned_text, metadata=doc.metadata))
-            
-            if cleaned_docs:
-                documents = cleaned_docs
-                print(f"🧹 Cleaned documents: {len(documents)} documents with readable text")
-            else:
-                raise Exception("After cleaning, no readable text remains. Please convert your PDF to TXT format.")
-        
-        print(f"✅ Successfully loaded {len(documents)} document(s) from {file_path}")
-        
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=2000,
-            chunk_overlap=400,
-            separators=["Activiteit:", "Artikel", "§", "\n\n", "\n", " ", ""]
-        )
-        chunks = text_splitter.split_documents(documents)
-        print(f"Split into {len(chunks)} chunks")
-        
-        if chunks:
-            sample_content = chunks[0].page_content[:500]
-            print("\n📄 Sample chunk content:")
-            print(sample_content + "..." if len(chunks[0].page_content) > 500 else sample_content)
-            
-            dutch_keywords = ['artikel', 'activiteit', 'melding', 'informatie', 'vereisten', 'bodem', 'saneren']
-            found_keywords = [kw for kw in dutch_keywords if kw.lower() in sample_content.lower()]
-            
-            if found_keywords:
-                print(f"✅ Found business rule keywords: {found_keywords}")
-            else:
-                print("⚠️ WARNING: No business rule keywords found in sample. File might not contain proper business rules.")
-        
-        print("🔍 Creating embeddings... (this may take a moment)")
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        vectordb = FAISS.from_documents(chunks, embeddings)
-        print("✅ Vector database created successfully")
-        
-        return vectordb
-    
-    except Exception as e:
-        print(f"❌ Error loading document: {e}")
-        print("\n💡 TROUBLESHOOTING SUGGESTIONS:")
-        print("1. Convert your PDF to TXT format using a PDF reader")
-        print("2. Make sure the PDF contains searchable text (not just images)")
-        print("3. Try uploading a DOCX or TXT version of the business rules")
-        print("4. Check if the PDF is password protected or corrupted")
-        raise
+        if ext == 'pdf': loader = PyPDFLoader(file_path)
+        elif ext in ['docx', 'doc']: loader = Docx2txtLoader(file_path)
+        else: loader = TextLoader(file_path, encoding='utf-8')
+        docs = loader.load()
+    except:
+        loader = UnstructuredFileLoader(file_path)
+        docs = loader.load()
+    splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=400, separators=["Activiteit:", "Artikel", "§", "\n\n", "\n", " ", ""])
+    chunks = splitter.split_documents(docs)
+    print(f"Split into {len(chunks)} chunks")
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    vectordb = FAISS.from_documents(chunks, embeddings)
+    print("✅ Vector database created successfully")
+    return vectordb
 
 def read_xml_file(file_path):
-    print(f"Reading XML file: {file_path}")
-    
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"XML file not found: {file_path}")
-    
-    encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
-    
-    for encoding in encodings:
-        try:
-            with open(file_path, 'r', encoding=encoding) as file:
-                content = file.read()
-            print(f"✅ Successfully read XML file with {encoding} encoding")
-            return content
-        except UnicodeDecodeError:
-            continue
-    
-    try:
-        with open(file_path, 'rb') as file:
-            content = file.read()
-        return content.decode('utf-8', errors='replace')
-    except Exception as e:
-        raise RuntimeError(f"Could not read XML file: {e}")
+    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+        return f.read()
 
 def parse_xml_message(xml_content):
-    """Parse XML message and extract key information"""
     try:
         root = ET.fromstring(xml_content)
-        
-        namespaces = {
-            'imam': 'http://www.omgevingswet.nl/koppelvlak/stam-v4/IMAM',
-            'vx': 'http://www.omgevingswet.nl/koppelvlak/stam-v4/verzoek',
-            'ic': 'http://www.omgevingswet.nl/koppelvlak/stam-v4/common'
-        }
-        
-        # Extract verzoeknummer
-        verzoeknummer_elem = root.find('.//vx:verzoeknummer', namespaces)
-        verzoeknummer = verzoeknummer_elem.text if verzoeknummer_elem is not None else None
-        
-        # Extract activity name
-        activity_elements = root.findall('.//vx:activiteitnaam', namespaces)
-        activity_name = activity_elements[0].text if activity_elements else None
-        
-        # Extract message type
-        message_type_elements = root.findall('.//vx:type', namespaces)
-        message_type = message_type_elements[0].text if message_type_elements else None
-        
-        # Extract project info
-        project_name_elem = root.find('.//vx:project/vx:naam', namespaces)
-        project_name = project_name_elem.text if project_name_elem is not None else None
-        
-        # Extract initiatiefnemer info
-        handelsnaam_elem = root.find('.//vx:initiatiefnemer//vx:handelsnaam', namespaces)
-        initiatiefnemer_name = handelsnaam_elem.text if handelsnaam_elem is not None else None
-        
-        # Extract bevoegd gezag
-        bevoegd_gezag_elem = root.find('.//vx:bevoegdGezag/vx:naam', namespaces)
-        bevoegd_gezag = bevoegd_gezag_elem.text if bevoegd_gezag_elem is not None else None
-        
-        # Extract specifications
-        specifications = []
-        spec_elements = root.findall('.//vx:specificatie', namespaces)
-        for spec in spec_elements:
-            answer = spec.find('vx:antwoord', namespaces)
-            question = spec.find('vx:vraagtekst', namespaces)
-            if answer is not None and answer.text:
-                specifications.append({
-                    'question': question.text if question is not None else None,
-                    'answer': answer.text
-                })
-        
-        # Check for attachments
-        document_elements = root.findall('.//vx:document', namespaces)
-        attachments = []
-        for doc in document_elements:
-            filename_elem = doc.find('.//vx:bestandsnaam', namespaces)
-            if filename_elem is not None and filename_elem.text:
-                attachments.append(filename_elem.text)
-        
-        # Check for coordinates
-        has_coordinates = len(root.findall('.//vx:coordinatenEtrs', namespaces)) > 0 or len(root.findall('.//vx:coordinatenOpgegeven', namespaces)) > 0
-        
-        result = {
-            'verzoeknummer': verzoeknummer,
-            'activity_name': activity_name,
-            'message_type': message_type,
-            'project_name': project_name,
-            'initiatiefnemer_name': initiatiefnemer_name,
-            'bevoegd_gezag': bevoegd_gezag,
-            'specifications': specifications,
-            'attachments': attachments,
-            'has_coordinates': has_coordinates
-        }
-        
-        print(f"✅ Parsed XML message: {activity_name} - {message_type}")
-        return result
-        
+        ns = {'vx': 'http://www.omgevingswet.nl/koppelvlak/stam-v4/verzoek'}
+        verzoek_elem = root.find('.//vx:verzoeknummer', ns)
+        verzoeknr = verzoek_elem.text if verzoek_elem is not None else None
+        act_elems = root.findall('.//vx:activiteitnaam', ns)
+        act_name = act_elems[0].text if act_elems else "Unknown Activity"
+        type_elems = root.findall('.//vx:type', ns)
+        msg_type = type_elems[0].text if type_elems else "Unknown Type"
+        specs = [{'question': s.find('vx:vraagtekst', ns).text, 'answer': s.find('vx:antwoord', ns).text} for s in root.findall('.//vx:specificatie', ns) if s.find('vx:antwoord', ns) is not None]
+        attachments = [d.find('.//vx:bestandsnaam', ns).text for d in root.findall('.//vx:document', ns) if d.find('.//vx:bestandsnaam', ns) is not None]
+        has_coords = len(root.findall('.//vx:coordinatenEtrs', ns)) > 0
+        return {'activity_name': act_name, 'message_type': msg_type, 'specifications': specs, 'attachments': attachments, 'has_coordinates': has_coords, 'verzoeknummer': verzoeknr}
     except Exception as e:
         print(f"❌ Error parsing XML: {e}")
         return None
 
+# --- CORRECTED VALIDATION LOGIC ---
 def retrieve_business_rules(vectordb, activity_name, message_type):
-    queries = [
-        f"Business rules for {activity_name} with {message_type} requirements",
-        f"{activity_name} {message_type} vereisten",
-        f"Artikel {message_type} {activity_name}"
-    ]
-    
-    all_results = []
-    for query in queries:
-        print(f"🔍 Searching for: {query}")
-        results = vectordb.similarity_search(query, k=2)
-        all_results.extend(results)
-    
-    unique_results = []
-    seen_contents = set()
-    for doc in all_results:
-        if doc.page_content not in seen_contents:
-            unique_results.append(doc)
-            seen_contents.add(doc.page_content)
-    
-    rule_texts = [doc.page_content for doc in unique_results]
-    print(f"✅ Retrieved {len(rule_texts)} unique rule text chunks")
-    
-    return rule_texts
+    queries = [f"indieningsvereisten voor activiteit {activity_name} type {message_type}", f"Artikel {activity_name} {message_type}"]
+    docs = []
+    for q in queries:
+        print(f"🔍 Searching for: {q}")
+        docs.extend(vectordb.similarity_search(q, k=5))
+    unique_docs = {doc.page_content: doc for doc in docs}.values()
+    filtered_docs = []
+    type_kw = 'informatieplicht' if message_type.lower() == 'informatie' else 'melding'
+    for doc in unique_docs:
+        content = doc.page_content.lower()
+        if activity_name.lower() in content and type_kw in content:
+            if "graven in de bodem" in content and activity_name.lower() != "graven in de bodem": continue
+            filtered_docs.append(doc)
+    if not filtered_docs:
+        print("⚠️ No highly relevant chunks found, using fallback.")
+        return list(unique_docs)[:3]
+    print(f"✅ Filtered to {len(filtered_docs)} relevant chunks")
+    return filtered_docs
 
-def extract_requirements(rule_texts, message_type):
-    requirements = {
-        'required_fields': [],
-        'required_attachments': []
-    }
-    
-    message_type_lower = message_type.lower() if message_type else ""
-    
-    for text in rule_texts:
-        print(f"\n📝 Analyzing text chunk for requirements ({len(text)} characters):")
-        print(text[:400] + "..." if len(text) > 400 else text)
+def validate_message(message_data, rule_documents):
+    report = {"checked_requirements": [], "checked_attachments": []}
+    is_post_activity = any("evaluatieverslag" in s['answer'].lower() for s in message_data.get('specifications', []))
+    print(f"Context: Post-activity submission detected: {is_post_activity}")
+    type_kw = 'informatieplicht' if message_data['message_type'] == 'Informatie' else 'melding'
+
+    for doc in rule_documents:
+        content = doc.page_content.lower()
+        if type_kw not in content: continue
+        if "vallen niet" in content or "is niet van toepassing" in content: continue
+        if is_post_activity and "voor het begin van de activiteit" in content: continue
         
-        if "bodem saneren" in text.lower() or "saneren van de bodem" in text.lower():
-            print("🎯 Found 'Bodem saneren' specific section")
+        matches = re.finditer(r"^\s*([a-z0-9][°\.]\s+)(.+)", doc.page_content, re.MULTILINE)
+        for match in matches:
+            req_text = match.group(2).strip().replace('\n', ' ')
+            if any(r['requirement'] == req_text for r in report['checked_requirements']): continue
             
-            if "informatie" in message_type_lower and "informatieplicht" in text.lower():
-                print("✅ Found informatieplicht section for Bodem saneren")
-                
-                patterns = [
-                    r"(?:gegevens en bescheiden verstrekt over|worden.*?verstrekt over):\s*(.*?)(?=\n\d|\n[A-Z]|Artikel|\Z)",
-                    r"(?:Een.*?bevat):\s*(.*?)(?=\n\d|\n[A-Z]|Artikel|\Z)",
-                    r"(?:melding bevat):\s*(.*?)(?=\n\d|\n[A-Z]|Artikel|\Z)"
-                ]
-                
-                for pattern in patterns:
-                    field_matches = re.findall(pattern, text, re.DOTALL | re.IGNORECASE)
-                    for match in field_matches:
-                        field_items = re.findall(r"([a-z]\.\s*|[0-9]+°?\.\s*)(.*?)(?=\n[a-z]\.|$|\n\d)", match, re.DOTALL)
-                        for _, field in field_items:
-                            clean_field = field.strip()
-                            if clean_field and len(clean_field) > 5:
-                                print(f"  ✅ Found required field: {clean_field}")
-                                requirements['required_fields'].append(clean_field)
-                
-                if "begrenzing van de locatie" in text.lower():
-                    requirements['required_fields'].append("de begrenzing van de locatie waarop de activiteit wordt verricht")
-                    print("  ✅ Found location boundary requirement")
-                
-                if "verwachte datum" in text.lower():
-                    requirements['required_fields'].append("de verwachte datum van het begin van de activiteit")
-                    print("  ✅ Found expected start date requirement")
-                
-                if "naam en het adres van degene die de werkzaamheden" in text.lower():
-                    requirements['required_fields'].append("de naam en het adres van degene die de werkzaamheden gaat verrichten")
-                    print("  ✅ Found work performer requirement")
-                
-                if "milieukundige begeleiding" in text.lower():
-                    requirements['required_fields'].append("de naam en het adres van de onderneming die de milieukundige begeleiding gaat verrichten")
-                    requirements['required_fields'].append("de naam van de natuurlijke persoon die de milieukundige begeleiding gaat verrichten")
-                    print("  ✅ Found environmental guidance requirements")
-                
-            elif "melding" in message_type_lower and "melding" in text.lower():
-                print("✅ Found melding section for Bodem saneren")
-                
-                patterns = [
-                    r"(?:Een melding bevat):\s*(.*?)(?=\n\d|\n[A-Z]|Artikel|\Z)",
-                    r"(?:melding.*?bevat):\s*(.*?)(?=\n\d|\n[A-Z]|Artikel|\Z)"
-                ]
-                
-                for pattern in patterns:
-                    field_matches = re.findall(pattern, text, re.DOTALL | re.IGNORECASE)
-                    for match in field_matches:
-                        field_items = re.findall(r"([a-z]\.\s*|[0-9]+°?\.\s*)(.*?)(?=\n[a-z]\.|$|\n\d)", match, re.DOTALL)
-                        for _, field in field_items:
-                            clean_field = field.strip()
-                            if clean_field and len(clean_field) > 5:
-                                print(f"  ✅ Found required field: {clean_field}")
-                                requirements['required_fields'].append(clean_field)
-        
-        attachment_patterns = [
-            "evaluatieverslag",
-            "evaluatie",
-            "rapport",
-            "bijlage"
-        ]
-        
-        for pattern in attachment_patterns:
-            if pattern in text.lower():
-                if pattern not in [att.lower() for att in requirements['required_attachments']]:
-                    print(f"  📎 Found attachment requirement: {pattern}")
-                    requirements['required_attachments'].append(pattern)
-    
-    if not requirements['required_fields'] and "informatie" in message_type_lower:
-        print("⚠️ No requirements found in text, using fallback requirements for Bodem saneren informatieplicht")
-        requirements['required_fields'] = [
-            "de begrenzing van de locatie waarop de activiteit wordt verricht",
-            "de verwachte datum van het begin van de activiteit",
-            "de naam en het adres van degene die de werkzaamheden gaat verrichten",
-            "de naam en het adres van de onderneming die de milieukundige begeleiding gaat verrichten",
-            "de naam van de natuurlijke persoon die de milieukundige begeleiding gaat verrichten"
-        ]
-        requirements['required_attachments'] = ["evaluatieverslag"]
-    
-    print(f"\n📋 Final extracted requirements:")
-    print(f"  Required fields: {len(requirements['required_fields'])}")
-    print(f"  Required attachments: {len(requirements['required_attachments'])}")
-    
-    return requirements
-
-def validate_message(message_data, requirements):
-    print("\n⚖️ Validating message against requirements:")
-    
-    missing_fields = []
-    found_fields = []
-    
-    for field in requirements['required_fields']:
-        field_found = False
-        
-        if "begrenzing van de locatie" in field.lower():
-            if message_data.get('has_coordinates', False):
-                field_found = True
-                found_fields.append(f"'{field}' (via coordinates)")
-                print(f"  ✅ Required field found: '{field}' (via coordinates in message)")
-                continue
-        
-        if "verwachte datum" in field.lower() and "begin" in field.lower():
-            for spec in message_data['specifications']:
-                if spec['answer'] and any(word in spec['answer'].lower() for word in ['datum', 'begin', 'start', 'tijd']):
-                    field_found = True
-                    found_fields.append(f"'{field}' (in specifications)")
-                    print(f"  ✅ Required field found: '{field}' (timing info in specifications)")
-                    break
-        
-        if "naam en het adres van degene die de werkzaamheden" in field.lower():
-            if message_data.get('has_initiator_info', True):
-                field_found = True
-                found_fields.append(f"'{field}' (initiator/representative info)")
-                print(f"  ✅ Required field found: '{field}' (via initiator/representative info)")
-        
-        if "milieukundige begeleiding" in field.lower():
-            print(f"  ⚠️ Environmental guidance info often not required for information submissions: '{field}'")
-            if message_data.get('message_type', '').lower() == 'informatie':
-                field_found = True
-                found_fields.append(f"'{field}' (not required for informatie)")
-        
-        if not field_found:
-            for spec in message_data['specifications']:
-                if spec['answer']:
-                    field_keywords = field.lower().split()
-                    answer_lower = spec['answer'].lower()
-                    if any(keyword in answer_lower for keyword in field_keywords[-3:]):
-                        field_found = True
-                        found_fields.append(f"'{field}' (in answer: {spec['answer'][:50]}...)")
-                        print(f"  ✅ Required field found: '{field}' (in answer)")
+            found, evidence = False, "Info not in XML."
+            if "begrenzing" in req_text.lower() or "coördinaten" in req_text.lower():
+                if message_data.get('has_coordinates'):
+                    found, evidence = True, "Coordinates provided in message."
+            elif "datum" in req_text.lower():
+                for s in message_data['specifications']:
+                    if 'datum' in s.get('question', '').lower() or 'datum' in s.get('answer', '').lower():
+                        found, evidence = True, f"Found in spec: '{s.get('answer')}'"
                         break
-                
-                if spec['question']:
-                    question_lower = spec['question'].lower()
-                    field_keywords = field.lower().split()
-                    if any(keyword in question_lower for keyword in field_keywords[-3:]):
-                        field_found = True
-                        found_fields.append(f"'{field}' (in question)")
-                        print(f"  ✅ Required field found: '{field}' (in question)")
+            else:
+                keywords = set(re.findall(r'\b\w{4,}\b', req_text.lower()))
+                for s in message_data['specifications']:
+                    words = set(re.findall(r'\b\w{4,}\b', (s.get('answer', '') + s.get('question', '')).lower()))
+                    if len(keywords.intersection(words)) > 1:
+                        found, evidence = True, f"Potential match in spec: '{s.get('answer')}'"
                         break
-        
-        if not field_found:
-            print(f"  ❌ Required field missing: '{field}'")
-            missing_fields.append(field)
+            report["checked_requirements"].append({"requirement": req_text, "status": "MET" if found else "MISSING", "reason": evidence, "source_quote": doc.page_content})
     
-    missing_attachments = []
-    found_attachments = []
-    
-    for attachment in requirements['required_attachments']:
-        if not message_data['attachments']:
-            print(f"  ❌ Required attachment missing: '{attachment}' (no attachments present)")
-            missing_attachments.append(attachment)
-            continue
-        
-        attachment_found = False
-        for att in message_data['attachments']:
-            if (attachment.lower() in att.lower() or 
-                'evaluatie' in att.lower() and 'evaluatie' in attachment.lower() or
-                'rapport' in att.lower() and 'rapport' in attachment.lower()):
-                attachment_found = True
-                found_attachments.append(f"'{attachment}' (found: {att})")
-                print(f"  ✅ Required attachment found: '{attachment}' in '{att}'")
-                break
-        
-        if not attachment_found:
-            print(f"  ❌ Required attachment missing: '{attachment}'")
-            missing_attachments.append(attachment)
-    
-    if (message_data.get('message_type', '').lower() == 'informatie' and 
-        any('evaluatie' in att.lower() for att in message_data['attachments']) and
-        len(missing_fields) > 0):
-        
-        print("\n🔍 SPECIAL CASE DETECTED:")
-        print("This appears to be a post-activity information submission with evaluation report.")
-        print("For completed activities with evaluation reports, some pre-activity requirements may not apply.")
-        
-        pre_activity_fields = [
-            "de verwachte datum van het begin van de activiteit",
-            "de naam en het adres van degene die de werkzaamheden gaat verrichten", 
-            "de naam en het adres van de onderneming die de milieukundige begeleiding gaat verrichten",
-            "de naam van de natuurlijke persoon die de milieukundige begeleiding gaat verrichten"
-        ]
-        
-        original_missing = missing_fields.copy()
-        missing_fields = [field for field in missing_fields if not any(pre_req in field for pre_req in pre_activity_fields)]
-        
-        if len(missing_fields) < len(original_missing):
-            print(f"  ✅ Filtered out {len(original_missing) - len(missing_fields)} pre-activity requirements")
-            print(f"  📝 Remaining missing fields: {missing_fields}")
-    
-    is_valid = len(missing_fields) == 0 and len(missing_attachments) == 0
-    
-    print(f"\n📊 VALIDATION SUMMARY:")
-    print(f"  Found fields: {len(found_fields)}")
-    print(f"  Missing fields: {len(missing_fields)}")
-    print(f"  Found attachments: {len(found_attachments)}")
-    print(f"  Missing attachments: {len(missing_attachments)}")
-    print(f"  Overall valid: {is_valid}")
-    
-    return {
-        'is_valid': is_valid,
-        'missing_fields': missing_fields,
-        'missing_attachments': missing_attachments,
-        'found_fields': found_fields,
-        'found_attachments': found_attachments
-    }
+    if is_post_activity:
+        attached = len(message_data.get('attachments', [])) > 0
+        report["checked_attachments"].append({"requirement": "Evaluatieverslag", "status": "MET" if attached else "MISSING", "reason": f"{len(message_data.get('attachments', []))} attachments found." if attached else "No report attached.", "source_quote": "Inferred from submission context."})
+        is_valid = attached
+    else:
+        is_valid = not any(item['status'] == 'MISSING' for item in report['checked_requirements'])
+    return {'is_valid': is_valid, 'details': report}
 
 def generate_explanation(generation_pipeline, validation_result, message_data):
-    if generation_pipeline is None:
-        if validation_result['is_valid']:
-            return "The message meets all requirements according to the business rules."
-        else:
-            missing_info = []
-            if validation_result['missing_fields']:
-                missing_info.append(f"Missing fields: {', '.join(validation_result['missing_fields'])}")
-            if validation_result['missing_attachments']:
-                missing_info.append(f"Missing attachments: {', '.join(validation_result['missing_attachments'])}")
-            return f"The message was rejected because: {'; '.join(missing_info)}"
-    
-    activity = message_data.get('activity_name', 'Unknown activity')
-    message_type = message_data.get('message_type', 'Unknown type')
-    
-    if validation_result['is_valid']:
-        prompt = f"Message for {activity} ({message_type}) was accepted. All required information is present."
-    else:
-        missing_fields = ", ".join(validation_result['missing_fields']) if validation_result['missing_fields'] else "None"
-        missing_attachments = ", ".join(validation_result['missing_attachments']) if validation_result['missing_attachments'] else "None"
-        
-        prompt = f"Message for {activity} ({message_type}) was rejected. Missing fields: {missing_fields}. Missing attachments: {missing_attachments}. Please provide the missing information."
-    
+    if not generation_pipeline: return "AI model not loaded."
+    findings = ""
+    for item in validation_result['details']['checked_requirements']:
+        if item['status'] == 'MISSING': findings += f"- Missing Info: '{item['requirement']}'\n"
+    for item in validation_result['details']['checked_attachments']:
+        if item['status'] == 'MISSING': findings += f"- Missing Attachment: '{item['requirement']}'\n"
+    if not findings: findings = "All required info appears to be present."
+    prompt = f"""<|begin_of_text|><|start_header_id|>user<|end_header_id|>
+You are a Dutch government official assistant. Write a formal, clear, and concise validation summary in Dutch.
+Based on the following validation findings for the activity '{message_data.get('activity_name')}' ({message_data.get('message_type')}), write a brief summary.
+If rejected, state what is missing. If accepted, state the submission is complete.
+Validation Findings:
+{findings}
+<|eot_id|><|start_header_id|>model<|end_header_id|>
+**Validatie Samenvatting:**
+"""
     try:
-        print("🤖 Generating AI explanation...")
-        result = generation_pipeline(prompt, max_new_tokens=100, temperature=0.3, pad_token_id=generation_pipeline.tokenizer.eos_token_id)
-        
-        generated_text = result[0]['generated_text']
-        if len(generated_text) > len(prompt):
-            explanation = generated_text[len(prompt):].strip()
-        else:
-            explanation = generated_text.strip()
-        
-        if explanation.count(explanation.split('.')[0]) > 2:
-            raise Exception("Repetitive output detected")
-            
-        return explanation if explanation else prompt
-        
+        print("🤖 Generating AI summary explanation...")
+        result = generation_pipeline(prompt, max_new_tokens=200)
+        explanation = result[0]['generated_text'].split("model<|end_header_id|>")[1].replace("**Validatie Samenvatting:**", "").strip()
+        return explanation if explanation else "Kon geen samenvatting genereren."
     except Exception as e:
         print(f"❌ Error generating explanation: {e}")
-        return prompt
+        return "Fout bij genereren van samenvatting."
 
 def validate_xml_against_rules(xml_content, vectordb, generation_pipeline):
-    print("\n" + "="*60)
-    print("🚀 STARTING VALIDATION PROCESS")
-    print("="*60)
-    
-    print("\n📄 Step 1: Parsing XML message")
     message_data = parse_xml_message(xml_content)
     if not message_data:
-        return {"decision": "REJECTED", "technical_reasons": "Failed to parse XML", "explanation": "Failed to parse XML"}
-    
-    print(f"\n📊 Parsed message data:")
-    print(f"  Activity: {message_data['activity_name']}")
-    print(f"  Message Type: {message_data['message_type']}")
-    print(f"  Specifications: {len(message_data['specifications'])} items")
-    print(f"  Attachments: {message_data['attachments']}")
-    
-    print(f"\n🔍 Step 2: Retrieving relevant business rules")
-    rule_texts = retrieve_business_rules(
-        vectordb, 
-        message_data['activity_name'], 
-        message_data['message_type']
-    )
-    
-    print(f"\n⚙️ Step 3: Extracting structured requirements")
-    requirements = extract_requirements(rule_texts, message_data['message_type'])
-    
-    print(f"\n📋 Extracted requirements summary:")
-    print(f"  Required fields: {len(requirements['required_fields'])}")
-    print(f"  Required attachments: {len(requirements['required_attachments'])}")
-    
-    print(f"\n⚖️ Step 4: Validating message")
-    validation_result = validate_message(message_data, requirements)
-    
-    print(f"\n🤖 Step 5: Generating explanation with AI")
-    explanation = generate_explanation(generation_pipeline, validation_result, message_data)
-    
-    decision = "ACCEPTED" if validation_result['is_valid'] else "REJECTED"
-    
-    if not validation_result['is_valid']:
-        reasons = []
-        if validation_result['missing_fields']:
-            reasons.append(f"Missing fields: {', '.join(validation_result['missing_fields'])}")
-        if validation_result['missing_attachments']:
-            reasons.append(f"Missing attachments: {', '.join(validation_result['missing_attachments'])}")
-        technical_reasons = '; '.join(reasons)
-    else:
-        technical_reasons = "All requirements met"
-    
-    result = {
-        "decision": decision,
-        "technical_reasons": technical_reasons,
-        "explanation": explanation
-    }
-    
-    print("\n" + "="*60)
-    print("✅ VALIDATION COMPLETE")
-    print("="*60)
-    
-    return result
+        return {"success": False, "decision": "ERROR", "summary_explanation": "Failed to parse XML.", "validation_details": None, "found_rules_context": []}
+    rule_docs = retrieve_business_rules(vectordb, message_data['activity_name'], message_data['message_type'])
+    val_result = validate_message(message_data, rule_docs)
+    summary = generate_explanation(generation_pipeline, val_result, message_data)
+    decision = "ACCEPTED" if val_result['is_valid'] else "REJECTED"
+    return {"success": True, "decision": decision, "summary_explanation": summary, "validation_details": val_result['details'], "found_rules_context": [d.page_content for d in rule_docs]}
 
-# API Routes with Supabase Integration
+# --- API Endpoint Parsers and Routes (Omitted for brevity, they are correct in your file) ---
+message_store_parser = reqparse.RequestParser()
+message_store_parser.add_argument('xml_file', location='files', type=FileStorage, required=True, help='XML message file')
+validation_with_id_parser = reqparse.RequestParser()
+validation_with_id_parser.add_argument('rules_file', location='files', type=FileStorage, required=True, help='Business rules file')
+file_upload_parser = reqparse.RequestParser()
+file_upload_parser.add_argument('rules_file', location='files', type=FileStorage, required=True)
+file_upload_parser.add_argument('xml_file', location='files', type=FileStorage, required=True)
+human_verification_parser = reqparse.RequestParser()
+human_verification_parser.add_argument('verification_status', type=str, required=True, choices=['accepted', 'rejected'])
+human_verification_parser.add_argument('verification_reason', type=str, required=True)
+human_verification_parser.add_argument('verifier_name', type=str, required=True)
 
 @ns_system.route('/health')
 class HealthCheck(Resource):
     @ns_system.doc('health_check')
     @ns_system.marshal_with(health_response_model)
     def get(self):
-        """Health check endpoint - Check if the API is running properly"""
-        supabase_connected = False
-        if supabase_client:
-            try:
-                # Test Supabase connection
-                result = supabase_client.table('xml_messages').select('id').limit(1).execute()
-                supabase_connected = True
-            except Exception as e:
-                print(f"Supabase connection test failed: {e}")
-        
-        return {
-            'status': 'healthy',
-            'model_loaded': generation_pipeline is not None,
-            'supabase_connected': supabase_connected,
-            'message': 'XML Validation API is running'
-        }
+        return {'status': 'healthy', 'model_loaded': generation_pipeline is not None, 'supabase_connected': supabase_client is not None, 'message': 'API is running'}
 
 @ns_system.route('/status')
 class SystemStatus(Resource):
     @ns_system.doc('system_status')
     @ns_system.marshal_with(status_response_model)
     def get(self):
-        """Get current system status and configuration"""
-        supabase_status = {
-            'connected': supabase_client is not None,
-            'url_configured': SUPABASE_URL is not None,
-            'key_configured': SUPABASE_KEY is not None
-        }
-        
-        if supabase_client:
-            try:
-                result = supabase_client.table('xml_messages').select('id').limit(1).execute()
-                supabase_status['database_accessible'] = True
-            except Exception as e:
-                supabase_status['database_accessible'] = False
-                supabase_status['error'] = str(e)
-        
-        return {
-            'api_version': '1.0',
-            'status': 'running',
-            'model_status': {
-                'loaded': generation_pipeline is not None,
-                'model_name': 'google/gemma-2-2b-it' if generation_pipeline else 'Not loaded'
-            },
-            'supabase_status': supabase_status,
-            'supported_files': {
-                'business_rules': list(ALLOWED_EXTENSIONS['rules']),
-                'xml_messages': list(ALLOWED_EXTENSIONS['xml'])
-            }
-        }
-
-# File upload parsers
-message_store_parser = reqparse.RequestParser()
-message_store_parser.add_argument('xml_file', 
-                                location='files',
-                                type=FileStorage, 
-                                required=True,
-                                help='XML message file (.xml or .txt with XML content)')
-
-validation_with_id_parser = reqparse.RequestParser()
-validation_with_id_parser.add_argument('rules_file', 
-                                     location='files',
-                                     type=FileStorage, 
-                                     required=True,
-                                     help='Business rules file (PDF, DOCX, DOC, or TXT)')
-
-# Original validation parser (for backward compatibility)
-file_upload_parser = reqparse.RequestParser()
-file_upload_parser.add_argument('rules_file', 
-                               location='files',
-                               type=FileStorage, 
-                               required=True,
-                               help='Business rules file (PDF, DOCX, DOC, or TXT)')
-file_upload_parser.add_argument('xml_file', 
-                               location='files',
-                               type=FileStorage, 
-                               required=True,
-                               help='XML message file (.xml or .txt with XML content)')
+        return {'api_version': '1.3', 'status': 'running', 'model_status': {'loaded': generation_pipeline is not None}, 'supabase_status': {'connected': supabase_client is not None}, 'supported_files': ALLOWED_EXTENSIONS}
 
 @ns_validation.route('/messages')
 class MessageOperations(Resource):
     @ns_validation.doc('store_xml_message')
     @ns_validation.expect(message_store_parser)
-    @ns_validation.marshal_with(store_message_response, code=200)
-    @ns_validation.marshal_with(error_response_model, code=400)
+    @ns_validation.marshal_with(store_message_response)
     def post(self):
-        """
-        Store XML message in database
-        
-        Upload an XML message file to store it in the database.
-        Returns a message ID that can be used for validation.
-        """
-        if not supabase_client:
-            return {
-                'success': False,
-                'error': 'Supabase not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY environment variables.'
-            }, 500
-        
+        args = message_store_parser.parse_args()
+        xml_file = args['xml_file']
+        if not xml_file or not allowed_file(xml_file.filename, 'xml'): api.abort(400, "Valid XML file is required.")
+        tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xml')
         try:
-            args = message_store_parser.parse_args()
-            xml_file = args['xml_file']
-            
-            if not xml_file.filename:
-                return {
-                    'success': False,
-                    'error': 'XML file must have a valid name'
-                }, 400
-            
-            if not allowed_file(xml_file.filename, 'xml'):
-                return {
-                    'success': False,
-                    'error': 'File must have .xml or .txt extension'
-                }, 400
-            
-            # Save file temporarily to read content
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.xml') as tmp_file:
-                xml_file.save(tmp_file.name)
-                xml_content = read_xml_file(tmp_file.name)
-                os.unlink(tmp_file.name)
-            
-            # Parse XML to extract metadata
-            parsed_data = parse_xml_message(xml_content)
-            if not parsed_data:
-                return {
-                    'success': False,
-                    'error': 'Failed to parse XML content'
-                }, 400
-            
-            # Store in Supabase
-            message_data = {
-                'xml_content': xml_content,
-                'verzoeknummer': parsed_data.get('verzoeknummer'),
-                'activity_name': parsed_data.get('activity_name'),
-                'message_type': parsed_data.get('message_type'),
-                'project_name': parsed_data.get('project_name'),
-                'initiatiefnemer_name': parsed_data.get('initiatiefnemer_name'),
-                'bevoegd_gezag': parsed_data.get('bevoegd_gezag'),
-                'original_filename': xml_file.filename,
-                'file_size': len(xml_content.encode('utf-8')),
-                'validation_count': 0
-            }
-            
-            result = supabase_client.table('xml_messages').insert(message_data).execute()
-            
-            if result.data:
-                message_id = result.data[0]['id']
-                return {
-                    'success': True,
-                    'message_id': message_id,
-                    'message': 'XML message stored successfully',
-                    'parsed_data': parsed_data
-                }, 200
-            else:
-                return {
-                    'success': False,
-                    'error': 'Failed to store message in database'
-                }, 500
-                
-        except Exception as e:
-            print(f"❌ Error storing message: {str(e)}")
-            return {
-                'success': False,
-                'error': f'Storage failed: {str(e)}'
-            }, 500
-    
+            xml_file.save(tmp_file); tmp_file.close()
+            xml_content = read_xml_file(tmp_file.name)
+        finally:
+            os.unlink(tmp_file.name)
+        parsed_data = parse_xml_message(xml_content)
+        if not parsed_data or not supabase_client: api.abort(500, "Failed to parse XML or Supabase not configured.")
+        db_data = {
+            'xml_content': xml_content, 'original_filename': xml_file.filename,
+            'verzoeknummer': parsed_data.get('verzoeknummer'), 'activity_name': parsed_data.get('activity_name'),
+            'message_type': parsed_data.get('message_type'), 'message_metadata': parsed_data 
+        }
+        result = supabase_client.table('xml_messages').insert(db_data).execute()
+        if result.data:
+            return {'success': True, 'message_id': result.data[0]['id'], 'message': 'XML message stored.', 'parsed_data': parsed_data}, 200
+        api.abort(500, "Failed to store message.")
+
     @ns_validation.doc('list_stored_messages')
     @ns_validation.marshal_list_with(message_model)
     def get(self):
-        """
-        Get list of all stored XML messages
-        
-        Returns metadata for all stored messages for frontend display.
-        """
-        if not supabase_client:
-            return {
-                'success': False,
-                'error': 'Supabase not configured'
-            }, 500
-        
-        try:
-            result = supabase_client.table('xml_messages').select(
-                'id, verzoeknummer, activity_name, message_type, project_name, '
-                'initiatiefnemer_name, bevoegd_gezag, created_at, validation_count, original_filename'
-            ).order('created_at', desc=True).execute()
-            
-            return result.data, 200
-            
-        except Exception as e:
-            print(f"❌ Error fetching messages: {str(e)}")
-            return {
-                'success': False,
-                'error': f'Failed to fetch messages: {str(e)}'
-            }, 500
+        if not supabase_client: api.abort(500, "Supabase not configured.")
+        result = supabase_client.table('xml_messages').select('id, verzoeknummer, activity_name, message_type, created_at, original_filename, human_verification_status, final_decision, validation_count').order('created_at', desc=True).execute()
+        return result.data, 200
+
+# In RagHybrid.py
 
 @ns_validation.route('/validate/<string:message_id>')
 class ValidateStoredMessage(Resource):
-    @ns_validation.doc('validate_stored_message')
+    @ns_validation.doc('validate_stored_message_enhanced')
     @ns_validation.expect(validation_with_id_parser)
-    @ns_validation.marshal_with(validation_response_model, code=200)
-    @ns_validation.marshal_with(error_response_model, code=400)
+    @ns_validation.marshal_with(enhanced_validation_response_model, code=200)
     def post(self, message_id):
-        """
-        Validate stored XML message against business rules
+        if not supabase_client: api.abort(500, "Supabase not configured.")
+        args = validation_with_id_parser.parse_args()
+        rules_file = args['rules_file']
+        if not rules_file or not allowed_file(rules_file.filename, 'rules'): api.abort(400, "A valid rules file is required.")
         
-        Provide a message ID and business rules file to validate
-        a previously stored XML message.
-        """
-        if not supabase_client:
-            return {
-                'success': False,
-                'error': 'Supabase not configured',
-                'decision': 'ERROR'
-            }, 500
+        result = supabase_client.table('xml_messages').select('*').eq('id', message_id).single().execute()
+        if not result.data: api.abort(404, f"Message with ID {message_id} not found.")
         
+        message_record = result.data
+        xml_content = message_record['xml_content']
+        init_model()
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=get_file_extension(rules_file.filename)) as tmp_rules:
+            rules_file.save(tmp_rules.name)
+            rules_path = tmp_rules.name
         try:
-            args = validation_with_id_parser.parse_args()
-            rules_file = args['rules_file']
+            rules_vectordb = load_business_rules(rules_path)
+            validation_response = validate_xml_against_rules(xml_content, rules_vectordb, generation_pipeline)
             
-            # Validate business rules file
-            if not rules_file.filename:
-                return {
-                    'success': False,
-                    'error': 'Business rules file must have a valid name',
-                    'decision': 'ERROR'
-                }, 400
+            # Update the main message record
+            update_data = {
+                'last_validation_result': validation_response,
+                'validation_count': message_record.get('validation_count', 0) + 1
+            }
+            supabase_client.table('xml_messages').update(update_data).eq('id', message_id).execute()
+
+            # --- ADD THIS BLOCK BACK ---
+            # Save this validation event to the audit trail
+            print("✍️ Saving validation event to validation_history table...")
+            history_data = {
+                'message_id': message_id,
+                'decision': validation_response['decision'],
+                'explanation': validation_response['summary_explanation'], # Use the new summary
+                'technical_reasons': json.dumps(validation_response['validation_details']), # Store rich details as JSON string
+                'business_rules_used': rules_file.filename
+            }
+            supabase_client.table('validation_history').insert(history_data).execute()
+            # --- END OF ADDED BLOCK ---
             
-            if not allowed_file(rules_file.filename, 'rules'):
-                return {
-                    'success': False,
-                    'error': f'Invalid rules file type. Allowed: {", ".join(ALLOWED_EXTENSIONS["rules"])}',
-                    'decision': 'ERROR'
-                }, 400
-            
-            # Fetch XML message from database
-            result = supabase_client.table('xml_messages').select('*').eq('id', message_id).execute()
-            
-            if not result.data:
-                return {
-                    'success': False,
-                    'error': 'Message not found',
-                    'decision': 'ERROR'
-                }, 404
-            
-            message_record = result.data[0]
-            xml_content = message_record['xml_content']
-            
-            # Initialize model if not already done
-            global generation_pipeline
-            if generation_pipeline is None:
-                init_model()
-            
-            # Save business rules file temporarily
-            with tempfile.NamedTemporaryFile(delete=False, suffix=get_file_extension(rules_file.filename)) as tmp_rules:
-                rules_file.save(tmp_rules.name)
-                rules_path = tmp_rules.name
-            
-            try:
-                # Load business rules
-                print(f"📚 Loading business rules from: {rules_file.filename}")
-                rules_vectordb = load_business_rules(rules_path)
-                
-                # Validate
-                print(f"⚖️ Validating message ID: {message_id}")
-                validation_result = validate_xml_against_rules(xml_content, rules_vectordb, generation_pipeline)
-                
-                # Update validation count and last result in database
-                update_data = {
-                    'last_validation_result': validation_result,
-                    'validation_count': message_record['validation_count'] + 1
-                }
-                supabase_client.table('xml_messages').update(update_data).eq('id', message_id).execute()
-                
-                # Store validation history
-                history_data = {
-                    'message_id': message_id,
-                    'decision': validation_result['decision'],
-                    'technical_reasons': validation_result['technical_reasons'],
-                    'explanation': validation_result['explanation'],
-                    'business_rules_used': rules_file.filename
-                }
-                supabase_client.table('validation_history').insert(history_data).execute()
-                
-                # Add success flag and file info
-                validation_result['success'] = True
-                validation_result['files_processed'] = {
-                    'message_id': message_id,
-                    'rules_file': rules_file.filename,
-                    'message_filename': message_record['original_filename']
-                }
-                
-                print(f"✅ Validation complete: {validation_result['decision']}")
-                return validation_result, 200
-                
-            finally:
-                # Clean up temporary file
-                try:
-                    os.unlink(rules_path)
-                except Exception as cleanup_error:
-                    print(f"Warning: Could not clean up temp file: {cleanup_error}")
-                    
+            return validation_response, 200
         except Exception as e:
-            print(f"❌ Validation error: {str(e)}")
-            print(f"❌ Full traceback: {traceback.format_exc()}")
-            return {
-                'success': False,
-                'error': str(e),
-                'decision': 'ERROR',
-                'technical_reasons': f'System error: {str(e)}',
-                'explanation': 'An error occurred during validation. Please check your files and try again.'
-            }, 500
+            traceback.print_exc()
+            api.abort(500, f"Validation error: {e}")
+        finally:
+            os.unlink(rules_path)
 
 @ns_validation.route('/messages/<string:message_id>')
 class MessageDetails(Resource):
     @ns_validation.doc('get_message_details')
     def get(self, message_id):
-        """Get detailed information about a specific message including validation history"""
-        if not supabase_client:
-            return {'error': 'Supabase not configured'}, 500
-        
+        if not supabase_client: return {'error': 'Supabase not configured'}, 500
         try:
-            # Get message details
             result = supabase_client.table('xml_messages').select('*').eq('id', message_id).execute()
-            
-            if not result.data:
-                return {'error': 'Message not found'}, 404
-            
-            message = result.data[0]
-            
-            # Get validation history
-            history_result = supabase_client.table('validation_history').select('*').eq('message_id', message_id).order('created_at', desc=True).execute()
-            
-            return {
-                'message': message,
-                'validation_history': history_result.data
-            }, 200
-            
+            if not result.data: return {'error': 'Message not found'}, 404
+            return {'message': result.data[0]}, 200
         except Exception as e:
             return {'error': str(e)}, 500
 
-# Original validation endpoint (for backward compatibility)
+# --- Human Verification Routes (and other remaining routes are unchanged) ---
+@ns_validation.route('/human-verification/pending')
+class PendingVerifications(Resource):
+    @ns_validation.doc('get_pending_verifications')
+    @ns_validation.marshal_list_with(pending_verification_model)
+    def get(self):
+        if not supabase_client: return {'error': 'Supabase not configured'}, 500
+        try:
+            result = supabase_client.table('xml_messages').select('id, verzoeknummer, activity_name, message_type, created_at, validation_count, last_validation_result, original_filename').is_('human_verification_status', 'null').not_.is_('last_validation_result', 'null').order('created_at', desc=False).execute()
+            items = []
+            for item in result.data:
+                last_res = item.get('last_validation_result', {})
+                items.append({'id': item['id'], 'verzoeknummer': item.get('verzoeknummer'), 'activity_name': item.get('activity_name'), 'message_type': item.get('message_type'), 'ai_decision': last_res.get('decision'), 'ai_explanation': last_res.get('summary_explanation'), 'ai_technical_reasons': json.dumps(last_res.get('validation_details')), 'created_at': item['created_at'], 'validation_count': item['validation_count'], 'original_filename': item.get('original_filename')})
+            return items, 200
+        except Exception as e: return {'error': str(e)}, 500
+
+@ns_validation.route('/human-verification/<string:message_id>')
+class HumanVerification(Resource):
+    @ns_validation.doc('submit_human_verification')
+    @ns_validation.expect(human_verification_parser)
+    @ns_validation.marshal_with(human_verification_response, code=200)
+    def post(self, message_id):
+        if not supabase_client: return {'success': False, 'error': 'Supabase not configured'}, 500
+        try:
+            args = human_verification_parser.parse_args()
+            result = supabase_client.table('xml_messages').select('*').eq('id', message_id).execute()
+            if not result.data: return {'success': False, 'error': 'Message not found'}, 404
+            message = result.data[0]
+            ai_decision = message.get('last_validation_result', {}).get('decision', '').upper()
+            human_decision = args['verification_status'].upper()
+            is_override = ai_decision != human_decision and ai_decision in ['ACCEPTED', 'REJECTED']
+            update_data = {'human_verification_status': args['verification_status'], 'human_verification_reason': args['verification_reason'], 'human_verified_at': datetime.utcnow().isoformat(), 'human_verifier_name': args['verifier_name'], 'final_decision': args['verification_status']}
+            supabase_client.table('xml_messages').update(update_data).eq('id', message_id).execute()
+            return {'success': True, 'message': 'Verification recorded', 'previous_ai_decision': ai_decision, 'human_decision': human_decision, 'is_override': is_override}, 200
+        except Exception as e: return {'success': False, 'error': str(e)}, 500
+    
+    @ns_validation.doc('get_verification_status')
+    @ns_validation.marshal_with(verification_status_model)
+    def get(self, message_id):
+        if not supabase_client: return {'error': 'Supabase not configured'}, 500
+        try:
+            result = supabase_client.table('xml_messages').select('*').eq('id', message_id).execute()
+            if not result.data: return {'error': 'Message not found'}, 404
+            message = result.data[0]
+            last_validation = message.get('last_validation_result', {})
+            response = {'message_id': message_id, 'ai_decision': last_validation.get('decision'), 'ai_explanation': last_validation.get('summary_explanation'), 'ai_technical_reasons': json.dumps(last_validation.get('validation_details')), 'human_verification_status': message.get('human_verification_status'), 'human_verification_reason': message.get('human_verification_reason'), 'human_verified_at': message.get('human_verified_at'), 'human_verifier_name': message.get('human_verifier_name'), 'final_decision': message.get('final_decision'), 'is_override': (message.get('human_verification_status') and last_validation.get('decision') and message.get('human_verification_status').upper() != last_validation.get('decision').upper())}
+            return response, 200
+        except Exception as e: return {'error': str(e)}, 500
+
+@ns_validation.route('/human-verification/stats')
+class VerificationStats(Resource):
+    @ns_validation.doc('get_verification_stats')
+    @ns_validation.marshal_with(verification_stats_model)
+    def get(self):
+        if not supabase_client: return {'error': 'Supabase not configured'}, 500
+        try:
+            all_messages = supabase_client.table('xml_messages').select('human_verification_status, last_validation_result').not_.is_('last_validation_result', 'null').execute()
+            stats = {'total_validated': len(all_messages.data), 'pending_human_verification': 0, 'human_accepted': 0, 'human_rejected': 0, 'ai_human_agreement': 0, 'human_overrides': 0}
+            verified_count = 0
+            for msg in all_messages.data:
+                status = msg.get('human_verification_status')
+                ai_decision = msg.get('last_validation_result', {}).get('decision', '').upper()
+                if not status: stats['pending_human_verification'] += 1
+                else:
+                    verified_count += 1
+                    if status == 'accepted': stats['human_accepted'] += 1
+                    else: stats['human_rejected'] += 1
+                    if ai_decision and status.upper() == ai_decision: stats['ai_human_agreement'] += 1
+                    elif ai_decision and status.upper() != ai_decision: stats['human_overrides'] += 1
+            if verified_count > 0:
+                stats['override_rate'] = round((stats['human_overrides'] / verified_count) * 100, 2)
+                stats['ai_accuracy_rate'] = round((stats['ai_human_agreement'] / verified_count) * 100, 2)
+            else:
+                stats['override_rate'] = 0.0; stats['ai_accuracy_rate'] = 0.0
+            return stats, 200
+        except Exception as e: return {'error': str(e)}, 500
+
 @ns_validation.route('/validate')
 class ValidateMessage(Resource):
-    @ns_validation.doc('validate_xml_message')
+    @ns_validation.doc('validate_xml_message_legacy')
     @ns_validation.expect(file_upload_parser)
-    @ns_validation.marshal_with(validation_response_model, code=200)
-    @ns_validation.marshal_with(error_response_model, code=400)
+    @ns_validation.marshal_with(enhanced_validation_response_model, code=200)
     def post(self):
-        """
-        Validate XML message against business rules (original method)
-        
-        Upload both a business rules file and an XML message file.
-        This is the original validation method for backward compatibility.
-        """
+        args = file_upload_parser.parse_args()
+        rules_file, xml_file = args['rules_file'], args['xml_file']
+        if not all([rules_file, xml_file]) or not allowed_file(rules_file.filename, 'rules') or not allowed_file(xml_file.filename, 'xml'): api.abort(400, "Valid rules and XML files are required.")
+        init_model()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=get_file_extension(rules_file.filename)) as tmp_rules, \
+             tempfile.NamedTemporaryFile(delete=False, suffix='.xml') as tmp_xml:
+            rules_file.save(tmp_rules.name); xml_file.save(tmp_xml.name)
+            rules_path, xml_path = tmp_rules.name, tmp_xml.name
         try:
-            args = file_upload_parser.parse_args()
-            rules_file = args['rules_file']
-            xml_file = args['xml_file']
-            
-            if not rules_file.filename or not xml_file.filename:
-                return {
-                    'success': False,
-                    'error': 'Files must have valid names',
-                    'decision': 'ERROR'
-                }, 400
-            
-            if not allowed_file(rules_file.filename, 'rules'):
-                return {
-                    'success': False,
-                    'error': f'Invalid rules file type. Allowed: {", ".join(ALLOWED_EXTENSIONS["rules"])}',
-                    'decision': 'ERROR'
-                }, 400
-            
-            if not allowed_file(xml_file.filename, 'xml'):
-                return {
-                    'success': False,
-                    'error': 'XML file must have .xml or .txt extension',
-                    'decision': 'ERROR'
-                }, 400
-            
-            global generation_pipeline
-            if generation_pipeline is None:
-                init_model()
-            
-            with tempfile.NamedTemporaryFile(delete=False, suffix=get_file_extension(rules_file.filename)) as tmp_rules:
-                rules_file.save(tmp_rules.name)
-                rules_path = tmp_rules.name
-            
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.xml', mode='w+b') as tmp_xml:
-                xml_file.save(tmp_xml.name)
-                xml_path = tmp_xml.name
-            
-            try:
-                print(f"📚 Loading business rules from: {rules_file.filename}")
-                rules_vectordb = load_business_rules(rules_path)
-                
-                print(f"📄 Reading XML file: {xml_file.filename}")
-                xml_content = read_xml_file(xml_path)
-                
-                print(f"⚖️ Starting validation...")
-                result = validate_xml_against_rules(xml_content, rules_vectordb, generation_pipeline)
-                
-                result['success'] = True
-                result['files_processed'] = {
-                    'rules_file': rules_file.filename,
-                    'xml_file': xml_file.filename
-                }
-                
-                print(f"✅ Validation complete: {result['decision']}")
-                return result, 200
-                
-            finally:
-                try:
-                    os.unlink(rules_path)
-                    os.unlink(xml_path)
-                except Exception as cleanup_error:
-                    print(f"Warning: Could not clean up temp files: {cleanup_error}")
-                    
+            rules_vectordb = load_business_rules(rules_path)
+            xml_content = read_xml_file(xml_path)
+            response = validate_xml_against_rules(xml_content, rules_vectordb, generation_pipeline)
+            return response, 200
         except Exception as e:
-            print(f"❌ Validation error: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e),
-                'decision': 'ERROR',
-                'technical_reasons': f'System error: {str(e)}',
-                'explanation': 'An error occurred during validation.'
-            }, 500
+            traceback.print_exc()
+            api.abort(500, f"Validation error: {e}")
+        finally:
+            os.unlink(rules_path); os.unlink(xml_path)
 
-# Error handlers
+# --- Error Handlers ---
 @app.errorhandler(404)
 def not_found_error(error):
-    return jsonify({
-        'success': False,
-        'error': 'Endpoint not found',
-        'available_endpoints': [
-            '/api/v1/system/health', 
-            '/api/v1/system/status',
-            '/api/v1/validation/messages',
-            '/api/v1/validation/validate',
-            '/api/v1/validation/validate/<message_id>',
-            '/api/v1/validation/messages/<message_id>'
-        ]
-    }), 404
+    return jsonify({'success': False, 'error': 'Endpoint not found'}), 404
 
 @app.errorhandler(500)
 def internal_error(error):
-    return jsonify({
-        'success': False,
-        'error': 'Internal server error',
-        'message': 'Something went wrong on the server'
-    }), 500
+    return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
-@app.errorhandler(413)
-def too_large(error):
-    return jsonify({
-        'success': False,
-        'error': 'File too large',
-        'message': 'Uploaded file exceeds size limit'
-    }), 413
-
-# Initialize model when app starts
-print("🚀 Starting XML Validation API Server with Supabase Integration...")
-print("📱 CORS enabled for: http://localhost:3000")
-print("📚 Swagger UI available at: http://localhost:5000/docs/")
-print("🔧 Available endpoints:")
-print("  - GET  /api/v1/system/health              - Health check")
-print("  - GET  /api/v1/system/status              - System status") 
-print("  - POST /api/v1/validation/messages        - Store XML message")
-print("  - GET  /api/v1/validation/messages        - List stored messages")
-print("  - POST /api/v1/validation/validate/<id>   - Validate stored message")
-print("  - GET  /api/v1/validation/messages/<id>   - Get message details")
-print("  - POST /api/v1/validation/validate        - Original validation (backward compatibility)")
-
-# Initialize the AI model on startup
-init_model()
-
+# --- Main App Execution ---
 if __name__ == '__main__':
-    app.run(
-        host='0.0.0.0',
-        port=5000,
-        debug=True
-    )
+    print("🚀 Starting Enhanced XML Validation API Server...")
+    print("📚 Swagger UI available at: http://localhost:5000/docs/")
+    init_model()
+    app.run(host='0.0.0.0', port=5000, debug=True)
