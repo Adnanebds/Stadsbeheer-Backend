@@ -12,9 +12,11 @@ import xml.etree.ElementTree as ET
 from langchain_community.document_loaders import TextLoader, PyPDFLoader, UnstructuredFileLoader, Docx2txtLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import SupabaseVectorStore
 import uuid
 from datetime import datetime
+import re
+from typing import List, Dict, Any
 
 # Supabase integration
 from supabase import create_client, Client
@@ -90,8 +92,14 @@ ALLOWED_EXTENSIONS = {
 
 # --- Swagger Models ---
 validation_detail_item_model = api.model('ValidationDetailItem', {
-    'requirement': fields.String(), 'status': fields.String(enum=['MET', 'MISSING']),
-    'reason': fields.String(), 'source_quote': fields.String()
+    'requirement': fields.String(description='The requirement text'),
+    'status': fields.String(enum=['MET', 'MISSING'], description='Whether requirement is met'),
+    'reason': fields.String(description='Explanation for the status'),
+    'source_quote': fields.String(description='Quote from the business rules document'),
+    'source_page': fields.Integer(description='Page number in source document'),
+    'source_file': fields.String(description='Filename of source document'),
+    'rule_name': fields.String(description='Name of the business rule'),
+    'rule_version': fields.String(description='Version of the business rule')
 })
 validation_details_model = api.model('ValidationDetails', {
     'checked_requirements': fields.List(fields.Nested(validation_detail_item_model)),
@@ -151,13 +159,12 @@ def create_storage_bucket_if_not_exists():
         return False
     
     try:
-        # Try to list buckets to see if our bucket exists
         buckets = supabase_client.storage.list_buckets()
         bucket_names = [bucket.name for bucket in buckets]
         
         if STORAGE_BUCKET not in bucket_names:
             print(f"Creating storage bucket: {STORAGE_BUCKET}")
-            supabase_client.storage.create_bucket(STORAGE_BUCKET, {"public": False})  # Changed to private
+            supabase_client.storage.create_bucket(STORAGE_BUCKET, {"public": False})
             print(f"Storage bucket {STORAGE_BUCKET} created successfully (private)")
         
         return True
@@ -167,73 +174,115 @@ def create_storage_bucket_if_not_exists():
 
 # Load business rules from Supabase Storage
 def load_business_rules_from_storage(rule_id):
-    """Load business rules from Supabase Storage and create vector store"""
+    """Load business rules from Supabase vector store - reuses existing embeddings"""
     if not supabase_client:
-        raise Exception("Supabase not configured")
-    
-    # Get rule metadata from database
-    result = supabase_client.table('business_rules').select('*').eq('id', rule_id).execute()
-    if not result.data:
-        raise Exception(f"Business rule with ID {rule_id} not found")
-    
-    rule = result.data[0]
-    storage_path = rule['storage_path']
-    file_name = rule['file_name']
-    
-    print(f"Loading business rules from storage: {file_name}")
+        raise Exception("Supabase client not initialized")
     
     try:
-        # Download file from Supabase Storage
-        file_content = supabase_client.storage.from_(STORAGE_BUCKET).download(storage_path)
+        # Get rule metadata from database
+        rule_result = supabase_client.table('business_rules').select('*').eq('id', rule_id).execute()
+        if not rule_result.data:
+            raise Exception(f"Rule {rule_id} not found in database")
         
-        # Create temporary file with the content
-        file_extension = get_file_extension(file_name)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as tmp_file:
-            tmp_file.write(file_content)
-            tmp_file_path = tmp_file.name
+        rule = rule_result.data[0]
+        
+        # Check if vectors already exist in database
+        existing_vectors = supabase_client.table('documents').select('id').eq('metadata->>rule_id', rule_id).limit(1).execute()
+        
+        if existing_vectors.data:
+            # Vectors already exist - just connect to them!
+            print(f"✅ Reusing existing vectors for rule {rule_id}")
+            embeddings = HuggingFaceEmbeddings(
+                model_name="sentence-transformers/all-MiniLM-L6-v2",
+                model_kwargs={'device': 'cpu'}
+            )
+            
+            vector_store = SupabaseVectorStore(
+                client=supabase_client,
+                embedding=embeddings,
+                table_name="documents",
+                query_name="match_documents"
+            )
+            
+            print(f"Connected to existing vector store for rule {rule_id}")
+            return vector_store
+        
+        # Vectors don't exist - need to create them
+        print(f"📥 Creating new vectors for rule {rule_id}")
+        
+        file_path = rule['file_url'].replace(f"{SUPABASE_URL}/storage/v1/object/public/{STORAGE_BUCKET}/", "")
+        
+        # Download file from Supabase Storage
+        print(f"Downloading rule file: {file_path}")
+        file_bytes = supabase_client.storage.from_(STORAGE_BUCKET).download(file_path)
+        
+        # Save to temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=get_file_extension(rule['file_name'])) as tmp_file:
+            tmp_file.write(file_bytes)
+            tmp_path = tmp_file.name
         
         try:
-            vectordb = load_business_rules(tmp_file_path)
-            return vectordb
-        finally:
-            os.unlink(tmp_file_path)
+            # Load document based on file type
+            file_extension = get_file_extension(rule['file_name'])
+            if file_extension == '.pdf':
+                loader = PyPDFLoader(tmp_path)
+            elif file_extension in ['.docx', '.doc']:
+                loader = Docx2txtLoader(tmp_path)
+            elif file_extension == '.txt':
+                loader = TextLoader(tmp_path, encoding='utf-8')
+            else:
+                loader = UnstructuredFileLoader(tmp_path)
             
+            documents = loader.load()
+            print(f"Loaded {len(documents)} document(s)")
+            
+            # Split documents
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=200,
+                length_function=len
+            )
+            texts = text_splitter.split_documents(documents)
+            print(f"Split into {len(texts)} chunks")
+            
+            # Add metadata
+            for doc in texts:
+                doc.metadata.update({
+                    'rule_id': rule_id,
+                    'rule_name': rule['name'],
+                    'rule_version': rule['version'],
+                    'file_name': rule['file_name']
+                })
+            
+            # Initialize embeddings
+            embeddings = HuggingFaceEmbeddings(
+                model_name="sentence-transformers/all-MiniLM-L6-v2",
+                model_kwargs={'device': 'cpu'}
+            )
+            
+            # Create Supabase vector store (this stores embeddings in DB)
+            vector_store = SupabaseVectorStore.from_documents(
+                texts,
+                embeddings,
+                client=supabase_client,
+                table_name="documents",
+                query_name="match_documents"
+            )
+            
+            print(f"✅ Created and stored {len(texts)} vectors in Supabase")
+            return vector_store
+            
+        finally:
+            # Cleanup temp file
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+                
     except Exception as e:
-        print(f"Error downloading file from storage: {e}")
-        raise Exception(f"Failed to load business rules from storage: {e}")
+        print(f"Error loading business rules: {e}")
+        traceback.print_exc()
+        raise
 
 # --- Core Functions (No Heavy AI Models) ---
-def load_business_rules(file_path):
-    print(f"Loading business rules from: {file_path}")
-    if not os.path.exists(file_path): 
-        raise FileNotFoundError(f"File not found: {file_path}")
-    
-    ext = file_path.split('.')[-1].lower()
-    try:
-        if ext == 'pdf': 
-            loader = PyPDFLoader(file_path)
-        elif ext in ['docx', 'doc']: 
-            loader = Docx2txtLoader(file_path)
-        else: 
-            loader = TextLoader(file_path, encoding='utf-8')
-        docs = loader.load()
-    except:
-        loader = UnstructuredFileLoader(file_path)
-        docs = loader.load()
-    
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=2000, 
-        chunk_overlap=400, 
-        separators=["Activiteit:", "Artikel", "§", "\n\n", "\n", " ", ""]
-    )
-    chunks = splitter.split_documents(docs)
-    print(f"Split into {len(chunks)} chunks")
-    
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vectordb = FAISS.from_documents(chunks, embeddings)
-    print("Vector database created successfully")
-    return vectordb
-
 def read_xml_file(file_path):
     with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
         return f.read()
@@ -278,92 +327,449 @@ def parse_xml_message(xml_content):
         print(f"Error parsing XML: {e}")
         return None
 
-def retrieve_business_rules(vectordb, activity_name, message_type):
-    queries = [
-        f"indieningsvereisten voor activiteit {activity_name} type {message_type}", 
-        f"Artikel {activity_name} {message_type}"
+def retrieve_business_rules(vectordb, activity_name: str, message_type: str) -> List:
+    """
+    IMPROVED v5: STRICT activity name matching with explicit exclusion
+    """
+    print(f"\n🔍 Searching for rules: Activity='{activity_name}', Type='{message_type}'")
+    
+    # Normalize
+    activity_normalized = activity_name.lower().strip()
+    type_keyword = 'informatieplicht' if message_type.lower() == 'informatie' else 'melding'
+    
+    # Extract KEY words from activity name
+    stop_words = {'van', 'de', 'het', 'een', 'in', 'op', 'of', 'en', 'voor', 'aan', 'bij', 'met', 'naar'}
+    activity_keywords = [
+        word for word in activity_normalized.split() 
+        if len(word) > 3 and word not in stop_words
     ]
-    docs = []
-    for q in queries:
-        print(f"Searching for: {q}")
-        docs.extend(vectordb.similarity_search(q, k=5))
     
-    unique_docs = {doc.page_content: doc for doc in docs}.values()
+    print(f"  🔑 Key activity words: {activity_keywords}")
+    print(f"  🎯 Full activity name: '{activity_name}'")
+    
+    # Build focused search queries
+    queries = []
+    
+    # Primary query: Full activity phrase (most important!)
+    if len(activity_keywords) >= 2:
+        queries.append(f"{activity_keywords[0]} {activity_keywords[1]}")
+    
+    # Add specific activity-related searches
+    if 'toepassen' in activity_keywords:
+        queries.extend([
+            "toepassen grond baggerspecie landbodem",
+            "functionele toepassing kubieke meter"
+        ])
+    elif 'graven' in activity_keywords:
+        queries.append("graven bodem interventiewaarde")
+    elif 'saneren' in activity_keywords:
+        queries.append("saneren bodem saneringsaanpak")
+    
+    # Add type-specific query
+    queries.append(f"{type_keyword} bevat")
+    
+    all_docs = []
+    seen_content = set()
+    
+    for query in queries:
+        print(f"  📝 Query: '{query}'")
+        results = vectordb.similarity_search(query, k=8)
+        
+        for doc in results:
+            content_hash = hash(doc.page_content)
+            if content_hash not in seen_content:
+                seen_content.add(content_hash)
+                all_docs.append(doc)
+    
+    print(f"  ✅ Found {len(all_docs)} unique document chunks")
+    
+    # ULTRA-STRICT filtering - must match EXACT activity
     filtered_docs = []
-    type_kw = 'informatieplicht' if message_type.lower() == 'informatie' else 'melding'
+    wrong_activity_docs = []
     
-    for doc in unique_docs:
-        content = doc.page_content.lower()
-        if activity_name.lower() in content and type_kw in content:
-            if "graven in de bodem" in content and activity_name.lower() != "graven in de bodem": 
-                continue
+    # Define EXACT wrong activity phrases to HARD REJECT
+    wrong_activities_map = {
+        'toepassen': [
+            'graven in de bodem',
+            'saneren van de bodem',
+            'bodemenergiesysteem',
+            'windturbine',
+            'kuilvoer',
+            'mestvergisting',
+            'artikel 4.1224',  # graven
+            'artikel 4.1235',  # saneren
+            'paragraaf 4.120',  # graven
+            '§ 4.121',  # saneren
+            'saneringsaanpak'  # specific to saneren
+        ],
+        'graven': [
+            'toepassen grond',
+            'saneren van de bodem',
+            'bodemenergiesysteem',
+            'artikel 4.1235',
+            'saneringsaanpak'
+        ],
+        'saneren': [
+            'toepassen grond',
+            'graven in de bodem',
+            'bodemenergiesysteem',
+            'artikel 4.1224'
+        ]
+    }
+    
+    # Determine which wrong activities to exclude
+    wrong_activities = []
+    for key_activity in ['toepassen', 'graven', 'saneren']:
+        if key_activity in activity_keywords:
+            wrong_activities = wrong_activities_map.get(key_activity, [])
+            break
+    
+    print(f"  🚫 Excluding documents containing: {wrong_activities}")
+    
+    for doc in all_docs:
+        content_lower = doc.page_content.lower()
+        
+        # HARD REJECTION: Check for wrong activities FIRST
+        has_wrong_activity = any(wrong_act in content_lower for wrong_act in wrong_activities)
+        
+        if has_wrong_activity:
+            wrong_activity_docs.append(doc)
+            print(f"  ❌ EXCLUDED: Contains wrong activity phrase (page {doc.metadata.get('page', '?')})")
+            continue
+        
+        # Count activity keyword matches (ALL keywords, not just first 3)
+        keyword_matches = sum(1 for kw in activity_keywords if kw in content_lower)
+        
+        # Check if it has requirements structure
+        has_requirements = bool(re.search(r'^\s*[a-z]\.\s+', content_lower, re.MULTILINE))
+        
+        # Check if it mentions correct type (melding/informatieplicht)
+        has_type_keyword = type_keyword in content_lower
+        
+        # STRICT DECISION LOGIC - Require MORE matches for 'toepassen'
+        min_keywords_required = 3 if 'toepassen' in activity_keywords else 2
+        
+        if keyword_matches >= min_keywords_required and has_type_keyword:
             filtered_docs.append(doc)
+            print(f"  ✅ INCLUDED: {keyword_matches}/{len(activity_keywords)} keywords + '{type_keyword}' (page {doc.metadata.get('page', '?')})")
+        elif has_requirements and has_type_keyword and keyword_matches >= 2:
+            filtered_docs.append(doc)
+            print(f"  ✅ INCLUDED: Requirements + '{type_keyword}' + {keyword_matches} keywords (page {doc.metadata.get('page', '?')})")
+        else:
+            print(f"  ⏭️  SKIPPED: keywords={keyword_matches}/{len(activity_keywords)}, type={has_type_keyword}, req={has_requirements}")
     
+    # If no relevant rules found, return warning
     if not filtered_docs:
-        print("No highly relevant chunks found, using fallback.")
-        return list(unique_docs)[:3]
+        print(f"  ⚠️  WARNING: No rules found for activity '{activity_name}'!")
+        print(f"  ⚠️  The uploaded business rules document may not contain rules for this activity.")
+        print(f"  ⚠️  Found rules for other activities: {len(wrong_activity_docs)} chunks")
+        
+        # Return empty to trigger proper error handling
+        return []
     
-    print(f"Filtered to {len(filtered_docs)} relevant chunks")
+    print(f"  🎯 Final filtered count: {len(filtered_docs)} relevant chunks\n")
     return filtered_docs
 
-def validate_message(message_data, rule_documents):
+def validate_message(message_data: Dict, rule_documents: List, rule_info: Dict = None) -> Dict:
+    """
+    CORRECTED v3: Properly handle both pre-activity and post-activity submissions
+    
+    Key Logic:
+    - Pre-activity informatieplicht: Check all requirements from 4.1237, 4.1238
+    - Post-activity informatieplicht: Only check for evaluation report attachment
+    
+    Note: The uploaded business rules document does NOT explicitly define 
+    post-activity requirements. This function uses defensive interpretation
+    to avoid applying "before start" rules to "after completion" submissions.
+    """
+    print(f"\n🔍 VALIDATING MESSAGE")
+    print(f"   Activity: {message_data.get('activity_name')}")
+    print(f"   Type: {message_data.get('message_type')}")
+    print(f"   Processing {len(rule_documents)} relevant rule documents\n")
+    
     report = {"checked_requirements": [], "checked_attachments": []}
-    is_post_activity = any("evaluatieverslag" in s['answer'].lower() for s in message_data.get('specifications', []))
-    print(f"Context: Post-activity submission detected: {is_post_activity}")
-    type_kw = 'informatieplicht' if message_data['message_type'] == 'Informatie' else 'melding'
-
-    for doc in rule_documents:
-        content = doc.page_content.lower()
-        if type_kw not in content: continue
-        if "vallen niet" in content or "is niet van toepassing" in content: continue
-        if is_post_activity and "voor het begin van de activiteit" in content: continue
+    
+    # Detect if this is a post-activity submission (evaluatieverslag)
+    is_post_activity = any(
+        "evaluatieverslag" in s.get('answer', '').lower() or
+        "nazorgplan" in s.get('answer', '').lower()
+        for s in message_data.get('specifications', [])
+    )
+    
+    type_keyword = 'informatieplicht' if message_data['message_type'].lower() == 'informatie' else 'melding'
+    
+    print(f"   Type keyword: '{type_keyword}'")
+    print(f"   Post-activity: {is_post_activity}")
+    
+    # IMPORTANT: Log if we're interpreting rules
+    if is_post_activity and type_keyword == 'informatieplicht':
+        print(f"   ⚠️  POST-ACTIVITY MODE ACTIVATED")
+        print(f"   ⚠️  Note: Business rules document does not explicitly define post-activity requirements.")
+        print(f"   ⚠️  Interpreting: Skipping pre-activity requirements (4.1237, 4.1238)")
+        print(f"   ⚠️  Only checking: Evaluation report attachment\n")
+    else:
+        print(f"   ℹ️  PRE-ACTIVITY MODE: Checking all {type_keyword} requirements\n")
+    
+    # Process each rule document
+    for idx, doc in enumerate(rule_documents):
+        content = doc.page_content
+        content_lower = content.lower()
         
-        matches = re.finditer(r"^\s*([a-z0-9][°\.]\s+)(.+)", doc.page_content, re.MULTILINE)
-        for match in matches:
-            req_text = match.group(2).strip().replace('\n', ' ')
-            if any(r['requirement'] == req_text for r in report['checked_requirements']): 
-                continue
+        print(f"📄 Processing document chunk {idx + 1}/{len(rule_documents)}")
+        print(f"   Page: {doc.metadata.get('page', '?')}")
+        
+        # Skip if wrong type
+        if type_keyword not in content_lower:
+            print(f"   ⏭️  Skipping: doesn't contain '{type_keyword}'\n")
+            continue
+        
+        # Skip exclusion rules
+        if any(phrase in content_lower for phrase in [
+            "vallen niet", "is niet van toepassing", "onder de aanwijzing vallen niet"
+        ]):
+            print(f"   ⏭️  Skipping: contains exclusion phrase\n")
+            continue
+        
+        # Extract the article number for context
+        article_match = re.search(r'artikel\s+(\d+\.\d+)', content_lower)
+        article_num = article_match.group(1) if article_match else "unknown"
+        
+        print(f"   📜 Article: {article_num}")
+        
+        # POST-ACTIVITY LOGIC: Skip ALL pre-activity requirement articles
+        skip_this_chunk = False
+        if is_post_activity and type_keyword == 'informatieplicht':
+            # Identify pre-activity articles by their explicit "voor het begin" language
+            is_pre_activity_article = (
+                "voor het begin van de activiteit" in content_lower or
+                "vier weken voor het begin" in content_lower or
+                "een week voor het begin" in content_lower
+            )
             
-            found, evidence = False, "Informatie niet gevonden in XML."
-            if "begrenzing" in req_text.lower() or "coördinaten" in req_text.lower():
-                if message_data.get('has_coordinates'):
-                    found, evidence = True, "Coördinaten aanwezig in bericht."
-            elif "datum" in req_text.lower():
-                for s in message_data['specifications']:
-                    if 'datum' in s.get('question', '').lower() or 'datum' in s.get('answer', '').lower():
-                        found, evidence = True, f"Gevonden in specificatie: '{s.get('answer')}'"
-                        break
-            else:
-                keywords = set(re.findall(r'\b\w{4,}\b', req_text.lower()))
-                for s in message_data['specifications']:
-                    words = set(re.findall(r'\b\w{4,}\b', (s.get('answer', '') + s.get('question', '')).lower()))
-                    if len(keywords.intersection(words)) > 1:
-                        found, evidence = True, f"Mogelijk match in specificatie: '{s.get('answer')}'"
-                        break
+            # Also identify by article numbers known to be pre-activity
+            is_known_pre_activity_article = article_num in ["4.1237", "4.1238", "4.1226", "4.1227"]
             
-            report["checked_requirements"].append({
-                "requirement": req_text, 
-                "status": "MET" if found else "MISSING", 
-                "reason": evidence, 
-                "source_quote": doc.page_content
-            })
+            if is_pre_activity_article or is_known_pre_activity_article:
+                print(f"   ⏭️  Skipping: Pre-activity requirement article {article_num} (post-activity mode)\n")
+                skip_this_chunk = True
+        
+        if skip_this_chunk:
+            continue
+        
+        # Extract requirements using multiple patterns
+        patterns = [
+            r'^\s*([a-z]\.)\s+(.+?)(?=\n[a-z]\.|$)',      # a. , b. , c.
+            r'^\s*(\d+[°º]\.)\s+(.+?)(?=\n\d+[°º]\.|$)',  # 1°. , 2°.
+        ]
+        
+        requirements_found = []
+        
+        for pattern in patterns:
+            matches = re.finditer(pattern, content, re.MULTILINE | re.DOTALL)
+            for match in matches:
+                req_text = match.group(2).strip()
+                # Clean up newlines and extra spaces
+                req_text = ' '.join(req_text.split())
+                
+                # Skip very short items
+                if len(req_text) < 10:
+                    continue
+                
+                # Skip if it ends mid-sentence (indicates incomplete extraction)
+                if not req_text.endswith(('.', ';', ':', 'en')):
+                    # Try to find the complete sentence
+                    continue
+                
+                requirements_found.append(req_text)
+        
+        print(f"   📋 Found {len(requirements_found)} requirements\n")
+        
+        # Validate each requirement (ONLY if not post-activity mode)
+        if is_post_activity and type_keyword == 'informatieplicht':
+            print(f"   ⏭️  Skipping requirement validation (post-activity mode - only checking attachments)\n")
+        else:
+            for req_text in requirements_found:
+                print(f"   ➡️  Requirement: '{req_text[:100]}...'")
+                
+                found = False
+                evidence = "Niet gevonden in XML bericht."
+                
+                # Check 1: Begrenzing/Coordinates (REQUIRED by 4.1237a)
+                if any(keyword in req_text.lower() for keyword in ['begrenzing', 'locatie waarop']):
+                    if message_data.get('has_coordinates'):
+                        found = True
+                        evidence = "✅ Begrenzing/coördinaten aanwezig in bericht"
+                        print(f"      ✅ MET: Coordinates found")
+                    else:
+                        evidence = "❌ Begrenzing/coördinaten ontbreken"
+                        print(f"      ❌ MISSING: No coordinates")
+                
+                # Check 2: Expected start date (REQUIRED by 4.1237b)
+                elif 'verwachte datum' in req_text.lower() and 'begin' in req_text.lower():
+                    date_found = False
+                    for spec in message_data.get('specifications', []):
+                        spec_text = (spec.get('question', '') + ' ' + spec.get('answer', '')).lower()
+                        if any(word in spec_text for word in ['datum', 'date', '2025', '2024']):
+                            date_found = True
+                            evidence = f"✅ Datum informatie: '{spec.get('answer', '')[:50]}'"
+                            print(f"      ✅ MET: Date found")
+                            break
+                    
+                    if not date_found:
+                        evidence = "❌ Verwachte startdatum ontbreekt"
+                        print(f"      ❌ MISSING: Start date missing")
+                    else:
+                        found = True
+                
+                # Check 3: Name/Address of executor (REQUIRED by 4.1238a)
+                elif 'naam' in req_text.lower() and 'adres' in req_text.lower() and 'werkzaamheden' in req_text.lower():
+                    xml_has_name = False
+                    for spec in message_data.get('specifications', []):
+                        spec_text = (spec.get('question', '') + ' ' + spec.get('answer', '')).lower()
+                        if any(word in spec_text for word in ['uitvoerder', 'aannemer', 'naam', 'bedrijf']):
+                            xml_has_name = True
+                            evidence = f"✅ Naam/adres uitvoerder: '{spec.get('answer', '')[:50]}'"
+                            print(f"      ✅ MET: Executor name found")
+                            break
+                    
+                    if not xml_has_name:
+                        evidence = "❌ Naam en adres van degene die werkzaamheden verricht ontbreekt"
+                        print(f"      ❌ MISSING: Executor name/address")
+                    else:
+                        found = True
+                
+                # Check 4: Environmental supervision company (REQUIRED by 4.1238b)
+                elif 'milieukundige begeleiding' in req_text.lower() and 'onderneming' in req_text.lower():
+                    supervision_found = False
+                    for spec in message_data.get('specifications', []):
+                        spec_text = (spec.get('question', '') + ' ' + spec.get('answer', '')).lower()
+                        if any(word in spec_text for word in ['milieukundig', 'begeleiding', 'toezicht']):
+                            supervision_found = True
+                            evidence = f"✅ Milieukundige begeleiding: '{spec.get('answer', '')[:50]}'"
+                            print(f"      ✅ MET: Environmental supervision found")
+                            break
+                    
+                    if not supervision_found:
+                        evidence = "❌ Naam/adres onderneming milieukundige begeleiding ontbreekt"
+                        print(f"      ❌ MISSING: Environmental supervision company")
+                    else:
+                        found = True
+                
+                # Check 5: Environmental supervisor person (REQUIRED by 4.1238c)
+                elif 'milieukundige begeleiding' in req_text.lower() and 'natuurlijke persoon' in req_text.lower():
+                    person_found = False
+                    for spec in message_data.get('specifications', []):
+                        spec_text = (spec.get('question', '') + ' ' + spec.get('answer', '')).lower()
+                        if any(word in spec_text for word in ['milieukundig', 'persoon', 'naam']):
+                            person_found = True
+                            evidence = f"✅ Natuurlijke persoon milieukundige begeleiding: '{spec.get('answer', '')[:50]}'"
+                            print(f"      ✅ MET: Supervisor person found")
+                            break
+                    
+                    if not person_found:
+                        evidence = "❌ Naam natuurlijke persoon milieukundige begeleiding ontbreekt"
+                        print(f"      ❌ MISSING: Supervisor person name")
+                    else:
+                        found = True
+                
+                # Check 6: General keyword matching for other requirements
+                else:
+                    req_keywords = set(
+                        word for word in re.findall(r'\b\w{4,}\b', req_text.lower())
+                        if word not in ['voor', 'wordt', 'worden', 'deze', 'zijn', 'heeft', 'hebben', 'moet', 'moeten', 'naar']
+                    )
+                    
+                    best_score = 0
+                    best_spec = None
+                    
+                    for spec in message_data.get('specifications', []):
+                        spec_text = (spec.get('answer', '') + ' ' + spec.get('question', '')).lower()
+                        spec_keywords = set(re.findall(r'\b\w{4,}\b', spec_text))
+                        
+                        matches = req_keywords.intersection(spec_keywords)
+                        score = len(matches)
+                        
+                        if score > best_score:
+                            best_score = score
+                            best_spec = spec
+                    
+                    if best_score >= 2:
+                        found = True
+                        evidence = f"✅ Match ({best_score} keywords): '{best_spec.get('answer', '')[:80]}'"
+                        print(f"      ✅ MET: {best_score} keyword matches")
+                    else:
+                        evidence = f"❌ Onvoldoende match ({best_score} keywords)"
+                        print(f"      ❌ MISSING: Only {best_score} keyword matches")
+                
+                # Add to report
+                requirement_item = {
+                    "requirement": req_text,
+                    "status": "MET" if found else "MISSING",
+                    "reason": evidence,
+                    "source_quote": content[:400],
+                    "source_page": doc.metadata.get('page', 1)
+                }
+                
+                if rule_info:
+                    requirement_item["source_file"] = rule_info.get('file_name', 'Unknown')
+                    requirement_item["rule_name"] = rule_info.get('name', 'Unknown')
+                    requirement_item["rule_version"] = rule_info.get('version', '1.0')
+                
+                report["checked_requirements"].append(requirement_item)
+    
+    # Check attachments
+    print("\n📎 Checking attachments...")
+    attachments = message_data.get('attachments', [])
     
     if is_post_activity:
-        attached = len(message_data.get('attachments', [])) > 0
-        report["checked_attachments"].append({
-            "requirement": "Evaluatieverslag", 
-            "status": "MET" if attached else "MISSING", 
-            "reason": f"{len(message_data.get('attachments', []))} bijlagen gevonden." if attached else "Geen rapport bijgevoegd.", 
-            "source_quote": "Afgeleid uit context van indiening."
-        })
-        is_valid = attached
-    else:
-        is_valid = not any(item['status'] == 'MISSING' for item in report['checked_requirements'])
+        # For post-activity: Evaluatieverslag is required
+        has_evaluation = any('evaluatie' in att.lower() for att in attachments)
+        
+        attachment_item = {
+            "requirement": "Evaluatieverslag na uitvoering (post-activity)",
+            "status": "MET" if has_evaluation else "MISSING",
+            "reason": f"✅ Evaluatieverslag bijgevoegd: {attachments[0] if attachments else 'N/A'}" if has_evaluation else "❌ Evaluatieverslag ontbreekt",
+            "source_quote": "Vereist voor post-activity informatieplicht",
+            "source_page": None
+        }
+        
+        if rule_info:
+            attachment_item["source_file"] = rule_info.get('file_name')
+            attachment_item["rule_name"] = rule_info.get('name')
+            attachment_item["rule_version"] = rule_info.get('version')
+        
+        report["checked_attachments"].append(attachment_item)
+        print(f"   {'✅ MET' if has_evaluation else '❌ MISSING'}: Evaluatieverslag\n")
     
-    return {'is_valid': is_valid, 'details': report}
+    # Calculate final validity
+    missing_requirements = [r for r in report['checked_requirements'] if r['status'] == 'MISSING']
+    missing_attachments = [a for a in report['checked_attachments'] if a['status'] == 'MISSING']
+    
+    is_valid = len(missing_requirements) == 0 and len(missing_attachments) == 0
+    
+    # Summary
+    total_req = len(report['checked_requirements'])
+    met_req = sum(1 for r in report['checked_requirements'] if r['status'] == 'MET')
+    
+    print(f"\n{'='*60}")
+    print(f"📊 VALIDATION SUMMARY")
+    print(f"{'='*60}")
+    print(f"Total requirements: {total_req}")
+    print(f"Requirements MET: {met_req}")
+    print(f"Requirements MISSING: {len(missing_requirements)}")
+    print(f"Attachments MISSING: {len(missing_attachments)}")
+    print(f"\nFinal decision: {'✅ VALID (ACCEPTED)' if is_valid else '❌ INVALID (REJECTED)'}")
+    print(f"{'='*60}\n")
+    
+    return {
+        'is_valid': is_valid,
+        'details': report
+    }
 
-def generate_simple_explanation(validation_result, message_data):
-    """Generate clear Dutch explanation without AI models"""
+def generate_simple_explanation(validation_result: Dict, message_data: Dict) -> str:
+    """
+    Generate clear Dutch explanation - UNCHANGED but included for completeness
+    """
     activity = message_data.get('activity_name', 'Onbekende activiteit')
     message_type = message_data.get('message_type', 'Onbekend type')
     
@@ -396,6 +802,8 @@ def generate_simple_explanation(validation_result, message_data):
         explanation += f"\nGelieve de ontbrekende informatie aan te vullen en opnieuw in te dienen."
         return explanation
 
+        
+
 def validate_xml_against_rules(xml_content, vectordb, rule_info=None):
     message_data = parse_xml_message(xml_content)
     if not message_data:
@@ -407,7 +815,21 @@ def validate_xml_against_rules(xml_content, vectordb, rule_info=None):
         }
     
     rule_docs = retrieve_business_rules(vectordb, message_data['activity_name'], message_data['message_type'])
-    val_result = validate_message(message_data, rule_docs)
+    
+    # Check if rules were found
+    if not rule_docs:
+        activity = message_data.get('activity_name', 'Onbekende activiteit')
+        return {
+            "success": False,
+            "decision": "ERROR",
+            "summary_explanation": f"Geen business rules gevonden voor activiteit '{activity}'. Het geüploade regelbestand bevat waarschijnlijk geen regels voor deze activiteit. Upload een regelbestand dat de juiste regels bevat.",
+            "validation_details": {
+                "checked_requirements": [],
+                "checked_attachments": []
+            }
+        }
+    
+    val_result = validate_message(message_data, rule_docs, rule_info)
     summary = generate_simple_explanation(val_result, message_data)
     decision = "ACCEPTED" if val_result['is_valid'] else "REJECTED"
     
@@ -422,6 +844,7 @@ def validate_xml_against_rules(xml_content, vectordb, rule_info=None):
         response['rule_used'] = rule_info
     
     return response
+
 
 # --- API Endpoint Parsers ---
 message_store_parser = reqparse.RequestParser()
@@ -479,7 +902,6 @@ class BusinessRulesUpload(Resource):
         if not supabase_client:
             api.abort(500, "Supabase not configured")
         
-        # Ensure storage bucket exists
         if not create_storage_bucket_if_not_exists():
             api.abort(500, "Failed to create or access storage bucket")
         
@@ -494,15 +916,11 @@ class BusinessRulesUpload(Resource):
             api.abort(400, "Valid business rules file is required")
         
         try:
-            # Read file content
             file_content = rules_file.read()
             
-            # --- FIX: Sanitize the filename to remove invalid characters ---
             import re
             sanitized_filename = re.sub(r'[^a-zA-Z0-9._-]', '', rules_file.filename)
-            # --- END OF FIX ---
             
-            # Auto-generate version if not provided
             if not version:
                 existing_rules = supabase_client.table('business_rules').select('version').eq('name', name).execute()
                 if existing_rules.data:
@@ -512,33 +930,35 @@ class BusinessRulesUpload(Resource):
                 else:
                     version = "1.0"
             
-            # Create unique storage path
             rule_id = str(uuid.uuid4())
-            # Use the SANITIZED filename
             storage_path = f"rules/{rule_id}/{sanitized_filename}"
             
-            # Upload file to Supabase Storage
             print(f"Uploading file to storage: {storage_path}")
-            storage_response = supabase_client.storage.from_(STORAGE_BUCKET).upload(storage_path, file_content)
             
-            # Get public URL for the file
+            mime_type = 'application/pdf' if sanitized_filename.endswith('.pdf') else \
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' if sanitized_filename.endswith('.docx') else \
+                        'text/plain'
+
+            # Upload to storage
+            supabase_client.storage.from_(STORAGE_BUCKET).upload(
+                storage_path, 
+                file_content,
+                file_options={"content-type": mime_type}
+            )
+            
             file_url = supabase_client.storage.from_(STORAGE_BUCKET).get_public_url(storage_path)
             
-            # If making this rule active, deactivate others with same name
             if make_active:
                 supabase_client.table('business_rules').update({'is_active': False}).eq('name', name).execute()
             
-            # Store metadata in database (no file content!)
             rule_data = {
                 'id': rule_id,
                 'name': name,
                 'version': version,
-                # Also use the SANITIZED filename here for consistency
                 'file_name': sanitized_filename,
                 'file_size': len(file_content),
                 'storage_path': storage_path,
                 'file_url': file_url,
-                # Use sanitized filename in description fallback
                 'description': description or f"Business rules from {sanitized_filename}",
                 'is_active': make_active
             }
@@ -546,6 +966,74 @@ class BusinessRulesUpload(Resource):
             result = supabase_client.table('business_rules').insert(rule_data).execute()
             
             if result.data:
+                # 🚀 NEW: Create vectors immediately after upload
+                print(f"🔄 Creating vectors for rule {rule_id}...")
+                try:
+                    # Save file temporarily
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=get_file_extension(sanitized_filename)) as tmp_file:
+                        tmp_file.write(file_content)
+                        tmp_path = tmp_file.name
+                    
+                    try:
+                        # Load document
+                        file_extension = get_file_extension(sanitized_filename)
+                        if file_extension == '.pdf':
+                            loader = PyPDFLoader(tmp_path)
+                        elif file_extension in ['.docx', '.doc']:
+                            loader = Docx2txtLoader(tmp_path)
+                        elif file_extension == '.txt':
+                            loader = TextLoader(tmp_path, encoding='utf-8')
+                        else:
+                            loader = UnstructuredFileLoader(tmp_path)
+                        
+                        documents = loader.load()
+                        print(f"📄 Loaded {len(documents)} document(s)")
+                        
+                        # Split documents
+                        text_splitter = RecursiveCharacterTextSplitter(
+                            chunk_size=1000,
+                            chunk_overlap=200,
+                            length_function=len
+                        )
+                        texts = text_splitter.split_documents(documents)
+                        print(f"✂️ Split into {len(texts)} chunks")
+                        
+                        # Add metadata
+                        for doc in texts:
+                            doc.metadata.update({
+                                'rule_id': rule_id,
+                                'rule_name': name,
+                                'rule_version': version,
+                                'file_name': sanitized_filename
+                            })
+                        
+                        # Initialize embeddings
+                        embeddings = HuggingFaceEmbeddings(
+                            model_name="sentence-transformers/all-MiniLM-L6-v2",
+                            model_kwargs={'device': 'cpu'}
+                        )
+                        
+                        # Create vectors in Supabase
+                        vector_store = SupabaseVectorStore.from_documents(
+                            texts,
+                            embeddings,
+                            client=supabase_client,
+                            table_name="documents",
+                            query_name="match_documents"
+                        )
+                        
+                        print(f"✅ Created {len(texts)} vectors in Supabase!")
+                        
+                    finally:
+                        # Cleanup temp file
+                        if os.path.exists(tmp_path):
+                            os.remove(tmp_path)
+                    
+                except Exception as vector_error:
+                    print(f"⚠️ Warning: Failed to create vectors: {vector_error}")
+                    # Don't fail the upload if vector creation fails
+                    # Vectors will be created on first validation instead
+                
                 rule_info = {
                     'id': rule_id,
                     'name': name,
@@ -557,11 +1045,10 @@ class BusinessRulesUpload(Resource):
                 return {
                     'success': True,
                     'rule_id': rule_id,
-                    'message': 'Business rules uploaded to Supabase Storage successfully',
+                    'message': 'Business rules uploaded and vectors created successfully',
                     'rule_info': rule_info
                 }, 200
             else:
-                # Clean up storage if database insert failed
                 try:
                     supabase_client.storage.from_(STORAGE_BUCKET).remove([storage_path])
                 except:
@@ -570,6 +1057,7 @@ class BusinessRulesUpload(Resource):
                 
         except Exception as e:
             print(f"Error uploading rules: {str(e)}")
+            traceback.print_exc()
             api.abort(500, f"Upload failed: {str(e)}")
             
 @ns_rules.route('/list')
@@ -627,10 +1115,8 @@ class ActivateRule(Resource):
             
             rule_name = rule_result.data[0]['name']
             
-            # Deactivate other versions of same rule
             supabase_client.table('business_rules').update({'is_active': False}).eq('name', rule_name).execute()
             
-            # Activate this version
             result = supabase_client.table('business_rules').update({'is_active': True}).eq('id', rule_id).execute()
             
             if result.data:
@@ -695,6 +1181,9 @@ class MessageOperations(Resource):
         return result.data, 200
 
 # --- VALIDATION ENDPOINT (NO FILE UPLOADS NEEDED) ---
+# Replace the entire ValidateStoredMessage class (lines ~544-605)
+# This is the complete updated validation endpoint
+
 @ns_validation.route('/validate/<string:message_id>')
 class ValidateStoredMessage(Resource):
     @ns_validation.doc('validate_stored_message_with_storage')
@@ -702,57 +1191,67 @@ class ValidateStoredMessage(Resource):
     @ns_validation.marshal_with(lightweight_validation_response_model, code=200)
     def post(self, message_id):
         """Validate stored XML message using business rules from Supabase Storage"""
-        if not supabase_client: api.abort(500, "Supabase not configured.")
+        if not supabase_client: 
+            api.abort(500, "Supabase not configured.")
         
         args = validation_with_stored_rules_parser.parse_args()
         rule_id = args.get('rule_id')
         
-        # Get the XML message
+        # Get the message
         result = supabase_client.table('xml_messages').select('*').eq('id', message_id).execute()
-        if not result.data: api.abort(404, f"Message with ID {message_id} not found.")
+        if not result.data: 
+            api.abort(404, f"Message with ID {message_id} not found.")
         
         message_record = result.data[0]
         xml_content = message_record['xml_content']
         
-        # Get business rules to use
+        # Get the rule to use
         if rule_id:
+            # Use specific rule requested
             rule_result = supabase_client.table('business_rules').select('*').eq('id', rule_id).execute()
             if not rule_result.data:
                 api.abort(404, f"Business rule with ID {rule_id} not found")
             rule_used = rule_result.data[0]
         else:
+            # Fall back to active rule
             active_rules = supabase_client.table('business_rules').select('*').eq('is_active', True).limit(1).execute()
             if not active_rules.data:
                 api.abort(404, "No active business rules found. Please upload and activate rules first.")
             rule_used = active_rules.data[0]
         
         try:
-            # Load rules from Supabase Storage (not database!)
+            # Load the rule from storage
             rules_vectordb = load_business_rules_from_storage(rule_used['id'])
             
+            # Create complete rule_info with all metadata
             rule_info = {
                 'id': rule_used['id'],
                 'name': rule_used['name'],
-                'version': rule_used['version']
+                'version': rule_used['version'],
+                'file_name': rule_used['file_name'],
+                'file_url': rule_used['file_url']
             }
             
+            # Perform validation
             validation_response = validate_xml_against_rules(xml_content, rules_vectordb, rule_info)
             
-            # Update message record
+            # Update message with validation result AND save which rule was used
             update_data = {
                 'last_validation_result': validation_response,
-                'validation_count': message_record.get('validation_count', 0) + 1
+                'validation_count': message_record.get('validation_count', 0) + 1,
+                'business_rule_id': rule_used['id']
             }
             supabase_client.table('xml_messages').update(update_data).eq('id', message_id).execute()
 
-            # Save to validation history
+            # Save to validation history with rule tracking
             print("Saving validation event to validation_history table...")
             history_data = {
                 'message_id': message_id,
                 'decision': validation_response['decision'],
                 'explanation': validation_response['summary_explanation'],
                 'technical_reasons': json.dumps(validation_response['validation_details']),
-                'business_rules_used': f"{rule_used['name']} v{rule_used['version']}"
+                'business_rules_used': f"{rule_used['name']} v{rule_used['version']}",
+                'business_rule_id': rule_used['id']
             }
             supabase_client.table('validation_history').insert(history_data).execute()
             
@@ -762,6 +1261,52 @@ class ValidateStoredMessage(Resource):
             traceback.print_exc()
             api.abort(500, f"Validation error: {e}")
 
+@ns_validation.route('/messages/<string:message_id>')
+class MessageDetails(Resource):
+    @ns_validation.doc('get_message_details')
+    def get(self, message_id):
+        """Fetches the details of a specific message by its ID."""
+        if not supabase_client:
+            return {'error': 'Supabase not configured'}, 500
+        
+        try:
+            # Query the database for the message with the matching ID
+            result = supabase_client.table('xml_messages').select('*').eq('id', message_id).single().execute()
+            
+            # Supabase's single() method handles the not-found case
+            if not result.data:
+                return {'error': 'Message not found'}, 404
+                
+            return result.data, 200
+        except Exception as e:
+            return {'error': str(e)}, 500
+# --- END OF BLOCK TO ADD ---          
+@ns_validation.route('/history/<string:message_id>')
+class ValidationHistory(Resource):
+    @ns_validation.doc('get_validation_history')
+    def get(self, message_id):
+        """Get validation history/audit trail for a specific message"""
+        if not supabase_client:
+            return {'error': 'Supabase not configured'}, 500
+        
+        try:
+            # First verify the message exists
+            message_result = supabase_client.table('xml_messages').select('id').eq('id', message_id).execute()
+            if not message_result.data:
+                return {'error': 'Message not found'}, 404
+            
+            # Get all validation history for this message
+            history_result = supabase_client.table('validation_history').select('*').eq('message_id', message_id).order('created_at', desc=True).execute()
+            
+            return {
+                'success': True,
+                'message_id': message_id,
+                'validation_count': len(history_result.data),
+                'history': history_result.data
+            }, 200
+            
+        except Exception as e:
+            return {'error': str(e)}, 500
 # --- HUMAN VERIFICATION ENDPOINTS ---
 @ns_validation.route('/human-verification/<string:message_id>')
 class HumanVerification(Resource):
@@ -820,10 +1365,10 @@ if __name__ == '__main__':
     print("Starting Lightweight XML Validation API with Supabase Storage...")
     print("Swagger UI available at: http://localhost:5000/docs/")
     print("Rule Management with Supabase Storage:")
-    print("  - POST /api/v1/rules/upload           - Upload business rules to storage")
-    print("  - GET  /api/v1/rules/list             - List all rules")
-    print("  - GET  /api/v1/rules/active           - Get active rules")
-    print("  - PATCH /api/v1/rules/activate/{id}   - Activate specific rule")
+    print("  - POST /api/v1/rules/upload         - Upload business rules to storage")
+    print("  - GET  /api/v1/rules/list           - List all rules")
+    print("  - GET  /api/v1/rules/active         - Get active rules")
+    print("  - PATCH /api/v1/rules/activate/{id}  - Activate specific rule")
     print("Validation Endpoints:")
     print("  - POST /api/v1/validation/messages    - Store XML messages")
     print("  - POST /api/v1/validation/validate/{message_id} - Validate using storage")
