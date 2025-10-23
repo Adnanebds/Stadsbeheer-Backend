@@ -8,9 +8,10 @@ werkzeug==3.0.1
 supabase==2.3.4
 postgrest==0.13.2
 
-# LangChain & RAG
-langchain==0.1.0
+# LangChain & RAG - FIXED VERSIONS
+langchain==0.1.20
 langchain-community==0.0.38
+langchain-core==0.1.52
 
 # Embeddings
 sentence-transformers==2.3.1
