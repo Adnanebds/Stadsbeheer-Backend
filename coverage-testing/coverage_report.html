@@ -1,0 +1,491 @@
+
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coverage Rapport - Omgevingswet Meldingen</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .coverage-bar {
+            width: 100%;
+            height: 40px;
+            background: #e0e0e0;
+            border-radius: 20px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .coverage-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #11998e 0%, #38ef7d 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            background: white;
+            border-collapse: collapse;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        .has-rules {
+            color: #38ef7d;
+            font-weight: bold;
+        }
+        .no-rules {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        .priority-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        .priority-high {
+            background: #ff6b6b;
+            color: white;
+        }
+        .priority-medium {
+            background: #ffd93d;
+            color: #333;
+        }
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Coverage Rapport</h1>
+        <p>Omgevingswet Meldingen - Business Rules Analyse</p>
+        <p style="opacity: 0.8;">Gegenereerd: 23-10-2025 09:49</p>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-value">3,608</div>
+            <div class="stat-label">Totaal Meldingen</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" style="color: #38ef7d">624</div>
+            <div class="stat-label">✅ Valideerbaar</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" style="color: #ff6b6b">2,984</div>
+            <div class="stat-label">❌ Niet Valideerbaar</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">17.29%</div>
+            <div class="stat-label">Coverage Percentage</div>
+        </div>
+    </div>
+    
+    <div class="coverage-bar">
+        <div class="coverage-fill" style="width: 17.29%">
+            17.29% Coverage
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>🎯 Prioriteiten Lijst</h2>
+        <p>Voeg deze business rules toe voor maximale impact op coverage:</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Activiteit</th>
+                    <th>Aantal Meldingen</th>
+                    <th>Impact</th>
+                    <th>Potentiële Coverage</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td><span class="priority-badge priority-high">#1</span></td>
+                    <td>Toepassen van grond of baggerspecie op of in de landbodem</td>
+                    <td>1,786</td>
+                    <td>+49.5%</td>
+                    <td>66.8%</td>
+                </tr>
+
+                <tr>
+                    <td><span class="priority-badge priority-high">#2</span></td>
+                    <td>Op de landbodem opslaan, zeven, mechanisch ontwateren of samenvoegen van zonder bewerking herbruikbare grond of baggerspecie</td>
+                    <td>193</td>
+                    <td>+5.3%</td>
+                    <td>72.1%</td>
+                </tr>
+
+                <tr>
+                    <td><span class="priority-badge priority-high">#3</span></td>
+                    <td>Slopen van een bouwwerk of gedeelte daarvan of asbest verwijderen</td>
+                    <td>158</td>
+                    <td>+4.4%</td>
+                    <td>76.5%</td>
+                </tr>
+
+                <tr>
+                    <td><span class="priority-badge priority-medium">#4</span></td>
+                    <td>Dierenverblijven</td>
+                    <td>131</td>
+                    <td>+3.6%</td>
+                    <td>80.1%</td>
+                </tr>
+
+                <tr>
+                    <td><span class="priority-badge priority-medium">#5</span></td>
+                    <td>Opslaan van grond en baggerspecie</td>
+                    <td>93</td>
+                    <td>+2.6%</td>
+                    <td>82.7%</td>
+                </tr>
+
+                <tr>
+                    <td><span class="priority-badge priority-medium">#6</span></td>
+                    <td>Opslaan van drijfmest, digestaat of dunne fractie in mestbassin</td>
+                    <td>74</td>
+                    <td>+2.0%</td>
+                    <td>84.8%</td>
+                </tr>
+
+                <tr>
+                    <td><span class="priority-badge priority-medium">#7</span></td>
+                    <td>Opslaan van verwijderd asbest</td>
+                    <td>61</td>
+                    <td>+1.7%</td>
+                    <td>86.5%</td>
+                </tr>
+
+                <tr>
+                    <td><span class="priority-badge priority-medium">#8</span></td>
+                    <td>Toepassen van bouwstoffen op of in de landbodem</td>
+                    <td>39</td>
+                    <td>+1.1%</td>
+                    <td>87.5%</td>
+                </tr>
+
+                <tr>
+                    <td><span class="priority-badge priority-medium">#9</span></td>
+                    <td>Opslaan van diesel en vloeistoffen die niet brandbaar zijn in bovengrondse opslagtanks</td>
+                    <td>39</td>
+                    <td>+1.1%</td>
+                    <td>88.6%</td>
+                </tr>
+
+                <tr>
+                    <td><span class="priority-badge priority-medium">#10</span></td>
+                    <td>Opslaan van gevaarlijke stoffen, anders dan organische peroxiden, in verpakking</td>
+                    <td>36</td>
+                    <td>+1.0%</td>
+                    <td>89.6%</td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h2>✅ Activiteiten met Business Rules</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Activiteit</th>
+                    <th>Aantal</th>
+                    <th>%</th>
+                    <th>Business Rules</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td>Graven in bodem met een kwaliteit boven de interventiewaarde bodemkwaliteit</td>
+                    <td>192</td>
+                    <td>5.32%</td>
+                    <td><span class="has-rules">Paragraaf 4.120 Bal</span></td>
+                </tr>
+
+                <tr>
+                    <td>Gesloten bodemenergiesysteem</td>
+                    <td>186</td>
+                    <td>5.16%</td>
+                    <td><span class="has-rules">Paragraaf 4.1137 Bal</span></td>
+                </tr>
+
+                <tr>
+                    <td>Saneren van de bodem</td>
+                    <td>79</td>
+                    <td>2.19%</td>
+                    <td><span class="has-rules">Paragraaf 3.2.23 Bal</span></td>
+                </tr>
+
+                <tr>
+                    <td>Opslaan van kuilvoer of vaste bijvoedermiddelen</td>
+                    <td>45</td>
+                    <td>1.25%</td>
+                    <td><span class="has-rules">Paragraaf 4.84 Bal</span></td>
+                </tr>
+
+                <tr>
+                    <td>Mestvergistingsinstallatie</td>
+                    <td>32</td>
+                    <td>0.89%</td>
+                    <td><span class="has-rules">Paragraaf 4.88 Bal</span></td>
+                </tr>
+
+                <tr>
+                    <td>Bodem saneren</td>
+                    <td>32</td>
+                    <td>0.89%</td>
+                    <td><span class="has-rules">Paragraaf 3.2.23 Bal</span></td>
+                </tr>
+
+                <tr>
+                    <td>Opslaan van vaste mest, champost of dikke fractie</td>
+                    <td>30</td>
+                    <td>0.83%</td>
+                    <td><span class="has-rules">Paragraaf 4.84 Bal</span></td>
+                </tr>
+
+                <tr>
+                    <td>Windturbine</td>
+                    <td>28</td>
+                    <td>0.78%</td>
+                    <td><span class="has-rules">Paragraaf 4.136 Bal, Artikel 22.61 OP</span></td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h2>❌ Activiteiten zonder Business Rules</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Activiteit</th>
+                    <th>Aantal</th>
+                    <th>%</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td>Toepassen van grond of baggerspecie op of in de landbodem</td>
+                    <td>1,786</td>
+                    <td>49.5%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Op de landbodem opslaan, zeven, mechanisch ontwateren of samenvoegen van zonder bewerking herbruikbare grond of baggerspecie</td>
+                    <td>193</td>
+                    <td>5.35%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Slopen van een bouwwerk of gedeelte daarvan of asbest verwijderen</td>
+                    <td>158</td>
+                    <td>4.38%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Dierenverblijven</td>
+                    <td>131</td>
+                    <td>3.63%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Opslaan van grond en baggerspecie</td>
+                    <td>93</td>
+                    <td>2.58%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Opslaan van drijfmest, digestaat of dunne fractie in mestbassin</td>
+                    <td>74</td>
+                    <td>2.05%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Opslaan van verwijderd asbest</td>
+                    <td>61</td>
+                    <td>1.69%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Toepassen van bouwstoffen op of in de landbodem</td>
+                    <td>39</td>
+                    <td>1.08%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Opslaan van diesel en vloeistoffen die niet brandbaar zijn in bovengrondse opslagtanks</td>
+                    <td>39</td>
+                    <td>1.08%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Opslaan van gevaarlijke stoffen, anders dan organische peroxiden, in verpakking</td>
+                    <td>36</td>
+                    <td>1.0%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Anders dan in een oppervlaktewaterlichaam opslaan, zeven, mechanisch ontwateren of samenvoegen van zonder bewerking herbruikbare grond of baggerspecie</td>
+                    <td>32</td>
+                    <td>0.89%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Ontgrondingsactiviteit op land, in regionale wateren en in een winterbed van een rivier in beheer bij het Rijk</td>
+                    <td>28</td>
+                    <td>0.78%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Opslaan van goederen</td>
+                    <td>25</td>
+                    <td>0.69%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Lassen van metalen</td>
+                    <td>19</td>
+                    <td>0.53%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Mechanisch en thermisch bewerken van metalen</td>
+                    <td>17</td>
+                    <td>0.47%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Kleine en middelgrote stookinstallatie voor standaard brandstoffen (minder dan 50 MW)</td>
+                    <td>17</td>
+                    <td>0.47%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Wasstraat of wasplaats</td>
+                    <td>15</td>
+                    <td>0.42%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Onderhouden en repareren van verbrandingsmotoren, gemotoriseerde voertuigen, vliegtuigen, vaartuigen of werktuigen</td>
+                    <td>14</td>
+                    <td>0.39%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Behandelen, regelen en meten van aardgas</td>
+                    <td>14</td>
+                    <td>0.39%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+                <tr>
+                    <td>Kleinschalig tanken van voertuigen, vliegtuigen of werktuigen met vloeibare brandstoffen (25 m3 per jaar of minder)</td>
+                    <td>14</td>
+                    <td>0.39%</td>
+                    <td><span class="no-rules">Geen rules</span></td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h2>💡 Aanbevelingen</h2>
+        <ul>
+            <li><strong>Prioriteit 1:</strong> Voeg business rules toe voor de top 3 activiteiten zonder rules</li>
+            <li><strong>Prioriteit 2:</strong> Verifieer "Toepassen van grond" rules (grootste impact: 49.5%)</li>
+            <li><strong>Prioriteit 3:</strong> Check PDF structuur - veel data zit in bijlagen i.p.v. gestructureerde velden</li>
+        </ul>
+    </div>
+    
+</body>
+</html>

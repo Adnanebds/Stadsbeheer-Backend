@@ -1,0 +1,690 @@
+{
+  "generated_at": "2025-10-23T09:49:31.489010",
+  "summary": {
+    "totaal_meldingen": 3608,
+    "valideerbaar": 624,
+    "niet_valideerbaar": 2984,
+    "coverage_percentage": 17.29
+  },
+  "activities": [
+    {
+      "activity_name": "Toepassen van grond of baggerspecie op of in de landbodem",
+      "count": 1786,
+      "percentage": 49.5,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Op de landbodem opslaan, zeven, mechanisch ontwateren of samenvoegen van zonder bewerking herbruikbare grond of baggerspecie",
+      "count": 193,
+      "percentage": 5.35,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Graven in bodem met een kwaliteit boven de interventiewaarde bodemkwaliteit",
+      "count": 192,
+      "percentage": 5.32,
+      "has_rules": true,
+      "sources": [
+        "Paragraaf 4.120 Bal"
+      ],
+      "confidence": "high",
+      "note": ""
+    },
+    {
+      "activity_name": "Gesloten bodemenergiesysteem",
+      "count": 186,
+      "percentage": 5.16,
+      "has_rules": true,
+      "sources": [
+        "Paragraaf 4.1137 Bal"
+      ],
+      "confidence": "high",
+      "note": ""
+    },
+    {
+      "activity_name": "Slopen van een bouwwerk of gedeelte daarvan of asbest verwijderen",
+      "count": 158,
+      "percentage": 4.38,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "low",
+      "note": "Waarschijnlijk in Paragraaf 4.123, maar niet in geüploade PDF"
+    },
+    {
+      "activity_name": "Dierenverblijven",
+      "count": 131,
+      "percentage": 3.63,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "low",
+      "note": "Business rules niet gevonden in PDF"
+    },
+    {
+      "activity_name": "Opslaan van grond en baggerspecie",
+      "count": 93,
+      "percentage": 2.58,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Saneren van de bodem",
+      "count": 79,
+      "percentage": 2.19,
+      "has_rules": true,
+      "sources": [
+        "Paragraaf 3.2.23 Bal"
+      ],
+      "confidence": "high",
+      "note": ""
+    },
+    {
+      "activity_name": "Opslaan van drijfmest, digestaat of dunne fractie in mestbassin",
+      "count": 74,
+      "percentage": 2.05,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "medium",
+      "note": "Mogelijk in Paragraaf 4.84, maar niet expliciet gevonden"
+    },
+    {
+      "activity_name": "Opslaan van verwijderd asbest",
+      "count": 61,
+      "percentage": 1.69,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Opslaan van kuilvoer of vaste bijvoedermiddelen",
+      "count": 45,
+      "percentage": 1.25,
+      "has_rules": true,
+      "sources": [
+        "Paragraaf 4.84 Bal"
+      ],
+      "confidence": "high",
+      "note": ""
+    },
+    {
+      "activity_name": "Toepassen van bouwstoffen op of in de landbodem",
+      "count": 39,
+      "percentage": 1.08,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Opslaan van diesel en vloeistoffen die niet brandbaar zijn in bovengrondse opslagtanks",
+      "count": 39,
+      "percentage": 1.08,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Opslaan van gevaarlijke stoffen, anders dan organische peroxiden, in verpakking",
+      "count": 36,
+      "percentage": 1.0,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Mestvergistingsinstallatie",
+      "count": 32,
+      "percentage": 0.89,
+      "has_rules": true,
+      "sources": [
+        "Paragraaf 4.88 Bal"
+      ],
+      "confidence": "high",
+      "note": ""
+    },
+    {
+      "activity_name": "Anders dan in een oppervlaktewaterlichaam opslaan, zeven, mechanisch ontwateren of samenvoegen van zonder bewerking herbruikbare grond of baggerspecie",
+      "count": 32,
+      "percentage": 0.89,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Bodem saneren",
+      "count": 32,
+      "percentage": 0.89,
+      "has_rules": true,
+      "sources": [
+        "Paragraaf 3.2.23 Bal"
+      ],
+      "confidence": "high",
+      "note": "Zelfde als \"Saneren van de bodem\""
+    },
+    {
+      "activity_name": "Opslaan van vaste mest, champost of dikke fractie",
+      "count": 30,
+      "percentage": 0.83,
+      "has_rules": true,
+      "sources": [
+        "Paragraaf 4.84 Bal"
+      ],
+      "confidence": "high",
+      "note": ""
+    },
+    {
+      "activity_name": "Windturbine",
+      "count": 28,
+      "percentage": 0.78,
+      "has_rules": true,
+      "sources": [
+        "Paragraaf 4.136 Bal",
+        "Artikel 22.61 OP"
+      ],
+      "confidence": "high",
+      "note": ""
+    },
+    {
+      "activity_name": "Ontgrondingsactiviteit op land, in regionale wateren en in een winterbed van een rivier in beheer bij het Rijk",
+      "count": 28,
+      "percentage": 0.78,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Opslaan van goederen",
+      "count": 25,
+      "percentage": 0.69,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Lassen van metalen",
+      "count": 19,
+      "percentage": 0.53,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Mechanisch en thermisch bewerken van metalen",
+      "count": 17,
+      "percentage": 0.47,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Kleine en middelgrote stookinstallatie voor standaard brandstoffen (minder dan 50 MW)",
+      "count": 17,
+      "percentage": 0.47,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Wasstraat of wasplaats",
+      "count": 15,
+      "percentage": 0.42,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Onderhouden en repareren van verbrandingsmotoren, gemotoriseerde voertuigen, vliegtuigen, vaartuigen of werktuigen",
+      "count": 14,
+      "percentage": 0.39,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Behandelen, regelen en meten van aardgas",
+      "count": 14,
+      "percentage": 0.39,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Kleinschalig tanken van voertuigen, vliegtuigen of werktuigen met vloeibare brandstoffen (25 m3 per jaar of minder)",
+      "count": 14,
+      "percentage": 0.39,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Koelinstallatie met kooldioxide, koolwaterstoffen of ammoniak",
+      "count": 14,
+      "percentage": 0.39,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Opslaan van propaan of propeen in opslagtanks",
+      "count": 14,
+      "percentage": 0.39,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Mobiel breken van bouw- en sloopafval",
+      "count": 11,
+      "percentage": 0.3,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Reinigen, lijmen en coaten van materialen",
+      "count": 10,
+      "percentage": 0.28,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Mestbehandelingsinstallatie",
+      "count": 10,
+      "percentage": 0.28,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Milieustraat",
+      "count": 10,
+      "percentage": 0.28,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Ontvangen van afvalstoffen",
+      "count": 9,
+      "percentage": 0.25,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Mechanisch bewerken van andere materialen dan steen en metalen",
+      "count": 8,
+      "percentage": 0.22,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Voedingsmiddelenindustrie",
+      "count": 8,
+      "percentage": 0.22,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Composteren en opslaan van groenafval",
+      "count": 7,
+      "percentage": 0.19,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Opslaan, herverpakken en bewerken van vuurwerk of pyrotechnische artikelen voor theatergebruik",
+      "count": 7,
+      "percentage": 0.19,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Grootschalig tanken van voertuigen, vliegtuigen of werktuigen met vloeibare brandstoffen (meer dan 25 m3 per jaar)",
+      "count": 6,
+      "percentage": 0.17,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Laden en lossen van vaartuigen of drijvende werktuigen",
+      "count": 6,
+      "percentage": 0.17,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Opslaan van brandbare vloeistoffen, anders dan diesel, in ondergrondse opslagtanks",
+      "count": 6,
+      "percentage": 0.17,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Onderhouden en repareren van verbrandingsmotoren, gemotoriseerde voertuigen, vliegtuigen, vaartuigen of werktuigen  ",
+      "count": 5,
+      "percentage": 0.14,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Reinigen van voertuigen of werktuigen voor agrarische activiteiten",
+      "count": 5,
+      "percentage": 0.14,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Opslaan van diesel en vloeistoffen die niet brandbaar zijn in tankcontainers of verpakkingen, die wordt gebruikt als opslagtank",
+      "count": 5,
+      "percentage": 0.14,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Solderen van metalen",
+      "count": 4,
+      "percentage": 0.11,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Opslaan van organische peroxiden in verpakking",
+      "count": 3,
+      "percentage": 0.08,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Opslaan van brandbare vloeistoffen, anders dan diesel, in bovengrondse opslagtanks",
+      "count": 3,
+      "percentage": 0.08,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Opslaan van diesel en vloeistoffen die niet brandbaar zijn in ondergrondse opslagtanks",
+      "count": 3,
+      "percentage": 0.08,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Gelegenheid bieden tot zwemmen of baden in een badwaterbassin voor eenmalig gebruik",
+      "count": 3,
+      "percentage": 0.08,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Jachthaven",
+      "count": 3,
+      "percentage": 0.08,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Verwerken van polyesterhars",
+      "count": 3,
+      "percentage": 0.08,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Opslaan van oxiderende en verstikkende tot vloeistof verdichte gassen in opslagtanks",
+      "count": 2,
+      "percentage": 0.06,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Autodemontagebedrijf en tweewielerdemontagebedrijf",
+      "count": 2,
+      "percentage": 0.06,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Gelegenheid bieden tot zwemmen of baden in een badwaterbassin waarin het water wordt gedesinfecteerd",
+      "count": 2,
+      "percentage": 0.06,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Aanbrengen van lagen op metalen",
+      "count": 2,
+      "percentage": 0.06,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Grootschalig tanken van vaartuigen of drijvende werktuigen met vloeibare brandstoffen (meer dan 25 m3 per jaar)",
+      "count": 1,
+      "percentage": 0.03,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Opslaan van gebruikt substraatmateriaal",
+      "count": 1,
+      "percentage": 0.03,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Schoonmaken van pleziervaartuigen",
+      "count": 1,
+      "percentage": 0.03,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Aanmaken en door vaste leidingen transporteren van gewasbeschermingsmiddelen, biociden of bladmeststoffen",
+      "count": 1,
+      "percentage": 0.03,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Spoelen van gewassen die biologisch zijn geteeld",
+      "count": 1,
+      "percentage": 0.03,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Uitweg maken, hebben of veranderen of het gebruik daarvan veranderen",
+      "count": 1,
+      "percentage": 0.03,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Toepassen van grond of baggerspecie in een oppervlaktewaterlichaam",
+      "count": 1,
+      "percentage": 0.03,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    },
+    {
+      "activity_name": "Opslaan van autowrakken",
+      "count": 1,
+      "percentage": 0.03,
+      "has_rules": false,
+      "sources": [],
+      "confidence": "unknown",
+      "note": "Activiteit niet gevonden in business rules mapping"
+    }
+  ],
+  "priority_list": [
+    {
+      "activity": "Toepassen van grond of baggerspecie op of in de landbodem",
+      "count": 1786,
+      "current_coverage": 17.3,
+      "potential_coverage": 66.8,
+      "impact": 49.5
+    },
+    {
+      "activity": "Op de landbodem opslaan, zeven, mechanisch ontwateren of samenvoegen van zonder bewerking herbruikbare grond of baggerspecie",
+      "count": 193,
+      "current_coverage": 66.8,
+      "potential_coverage": 72.1,
+      "impact": 5.3
+    },
+    {
+      "activity": "Slopen van een bouwwerk of gedeelte daarvan of asbest verwijderen",
+      "count": 158,
+      "current_coverage": 72.1,
+      "potential_coverage": 76.5,
+      "impact": 4.4
+    },
+    {
+      "activity": "Dierenverblijven",
+      "count": 131,
+      "current_coverage": 76.5,
+      "potential_coverage": 80.1,
+      "impact": 3.6
+    },
+    {
+      "activity": "Opslaan van grond en baggerspecie",
+      "count": 93,
+      "current_coverage": 80.1,
+      "potential_coverage": 82.7,
+      "impact": 2.6
+    },
+    {
+      "activity": "Opslaan van drijfmest, digestaat of dunne fractie in mestbassin",
+      "count": 74,
+      "current_coverage": 82.7,
+      "potential_coverage": 84.8,
+      "impact": 2.0
+    },
+    {
+      "activity": "Opslaan van verwijderd asbest",
+      "count": 61,
+      "current_coverage": 84.8,
+      "potential_coverage": 86.5,
+      "impact": 1.7
+    },
+    {
+      "activity": "Toepassen van bouwstoffen op of in de landbodem",
+      "count": 39,
+      "current_coverage": 86.5,
+      "potential_coverage": 87.5,
+      "impact": 1.1
+    },
+    {
+      "activity": "Opslaan van diesel en vloeistoffen die niet brandbaar zijn in bovengrondse opslagtanks",
+      "count": 39,
+      "current_coverage": 87.5,
+      "potential_coverage": 88.6,
+      "impact": 1.1
+    },
+    {
+      "activity": "Opslaan van gevaarlijke stoffen, anders dan organische peroxiden, in verpakking",
+      "count": 36,
+      "current_coverage": 88.6,
+      "potential_coverage": 89.6,
+      "impact": 1.0
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "CRITICAL",
+      "message": "Coverage is zeer laag (17.29%). Focus op top 3 missende activiteiten."
+    },
+    {
+      "priority": "HIGH",
+      "message": "'Toepassen van grond of baggerspecie op of in de landbodem' heeft 49.5% impact. Dit moet eerste prioriteit zijn."
+    },
+    {
+      "priority": "MEDIUM",
+      "message": "2 activiteiten hebben onzekere status. Verifieer handmatig."
+    }
+  ]
+}
